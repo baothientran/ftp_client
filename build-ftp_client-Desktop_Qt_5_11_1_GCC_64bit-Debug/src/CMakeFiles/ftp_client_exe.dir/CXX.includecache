@@ -1,0 +1,26 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/baothientran/Projects/ftp_client/src/FtpService.h
+memory
+-
+string
+-
+exception
+-
+map
+-
+
+/home/baothientran/Projects/ftp_client/src/main.cpp
+iostream
+-
+string
+-
+FtpService.h
+/home/baothientran/Projects/ftp_client/src/FtpService.h
+

@@ -1,0 +1,1 @@
+/usr/bin/x86_64-linux-gnu-g++  -g   CMakeFiles/ftp.dir/main.cpp.o  -o ftp 
