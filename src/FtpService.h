@@ -3,15 +3,12 @@
 
 #include <memory>
 #include <string>
-#include <exception>
-#include <map>
+#include <functional>
+#include <vector>
+#include <limits>
 
 
-enum FtpStatusCode {
-    CONNECTION_ERROR = 0,
-    FAIL_WRITE_REQUEST = 1,
-    FAIL_READ_REPLY = 2,
-
+enum FtpCode {
     COMMAND_OK = 200,
     COMMAND_NOT_RECOGNIZED = 500,
     COMMAND_ARGS_NOT_RECOGNIZED = 501,
@@ -56,8 +53,8 @@ enum FtpStatusCode {
 };
 
 
-struct FtpStatus {
-    FtpStatusCode code;
+struct FtpCtrlReply {
+    FtpCode code;
     std::string msg;
 };
 
@@ -73,19 +70,45 @@ public:
 
     ~FtpService();
 
-    FtpStatus connectHost(const std::string &hostAddr, const std::string &port);
+    bool openDataConnect(uint16_t port);
 
-    FtpStatus user(const std::string &user);
+    bool readDataReply(std::vector<char> &buf);
 
-    FtpStatus pass(const std::string &pass);
+    bool closeDataConnect();
 
-    FtpStatus cwd(const std::string &path);
+    bool openCtrlConnect(const std::string &hostname, uint16_t port);
 
-    FtpStatus pwd();
+    bool readCtrlReply(FtpCtrlReply &status);
 
-    FtpStatus quit();
+    bool closeCtrlConnect();
 
-    FtpStatus list(const std::string &path);
+    bool sendUSER(const std::string &sendUSER);
+
+    bool sendPASS(const std::string &sendPASS);
+
+    bool sendCWD(const std::string &path);
+
+    bool sendPWD();
+
+    bool sendLIST(const std::string &path);
+
+    bool sendQUIT();
+
+    bool sendPASV();
+
+    bool sendEPSV(const std::string &networkProtocol);
+
+    bool sendPORT(uint16_t port);
+
+    bool sendEPRT(uint16_t port);
+
+    static void parsePASVReply(const std::string &pasvReply, uint16_t &port);
+
+    static void parseEPSVReply(const std::string &epsvReply, uint16_t &port);
+
+    static const uint32_t USABLE_PORT_MIN  = 1024;
+
+    static const uint32_t USABLE_PORT_MAX  = std::numeric_limits<uint16_t>::max();
 
 private:
     struct Impl;

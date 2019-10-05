@@ -57,28 +57,28 @@ include src/CMakeFiles/ftp_client_lib.dir/progress.make
 # Include the compile flags for this target's objects.
 include src/CMakeFiles/ftp_client_lib.dir/flags.make
 
-src/CMakeFiles/ftp_client_lib.dir/Command.cpp.o: src/CMakeFiles/ftp_client_lib.dir/flags.make
-src/CMakeFiles/ftp_client_lib.dir/Command.cpp.o: ../src/Command.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object src/CMakeFiles/ftp_client_lib.dir/Command.cpp.o"
-	cd /home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/src && /usr/bin/x86_64-linux-gnu-g++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/ftp_client_lib.dir/Command.cpp.o -c /home/baothientran/Projects/ftp_client/src/Command.cpp
+src/CMakeFiles/ftp_client_lib.dir/Ultility.cpp.o: src/CMakeFiles/ftp_client_lib.dir/flags.make
+src/CMakeFiles/ftp_client_lib.dir/Ultility.cpp.o: ../src/Ultility.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object src/CMakeFiles/ftp_client_lib.dir/Ultility.cpp.o"
+	cd /home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/src && /usr/bin/x86_64-linux-gnu-g++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/ftp_client_lib.dir/Ultility.cpp.o -c /home/baothientran/Projects/ftp_client/src/Ultility.cpp
 
-src/CMakeFiles/ftp_client_lib.dir/Command.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/ftp_client_lib.dir/Command.cpp.i"
-	cd /home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/src && /usr/bin/x86_64-linux-gnu-g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/baothientran/Projects/ftp_client/src/Command.cpp > CMakeFiles/ftp_client_lib.dir/Command.cpp.i
+src/CMakeFiles/ftp_client_lib.dir/Ultility.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/ftp_client_lib.dir/Ultility.cpp.i"
+	cd /home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/src && /usr/bin/x86_64-linux-gnu-g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/baothientran/Projects/ftp_client/src/Ultility.cpp > CMakeFiles/ftp_client_lib.dir/Ultility.cpp.i
 
-src/CMakeFiles/ftp_client_lib.dir/Command.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/ftp_client_lib.dir/Command.cpp.s"
-	cd /home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/src && /usr/bin/x86_64-linux-gnu-g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/baothientran/Projects/ftp_client/src/Command.cpp -o CMakeFiles/ftp_client_lib.dir/Command.cpp.s
+src/CMakeFiles/ftp_client_lib.dir/Ultility.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/ftp_client_lib.dir/Ultility.cpp.s"
+	cd /home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/src && /usr/bin/x86_64-linux-gnu-g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/baothientran/Projects/ftp_client/src/Ultility.cpp -o CMakeFiles/ftp_client_lib.dir/Ultility.cpp.s
 
-src/CMakeFiles/ftp_client_lib.dir/Command.cpp.o.requires:
+src/CMakeFiles/ftp_client_lib.dir/Ultility.cpp.o.requires:
 
-.PHONY : src/CMakeFiles/ftp_client_lib.dir/Command.cpp.o.requires
+.PHONY : src/CMakeFiles/ftp_client_lib.dir/Ultility.cpp.o.requires
 
-src/CMakeFiles/ftp_client_lib.dir/Command.cpp.o.provides: src/CMakeFiles/ftp_client_lib.dir/Command.cpp.o.requires
-	$(MAKE) -f src/CMakeFiles/ftp_client_lib.dir/build.make src/CMakeFiles/ftp_client_lib.dir/Command.cpp.o.provides.build
-.PHONY : src/CMakeFiles/ftp_client_lib.dir/Command.cpp.o.provides
+src/CMakeFiles/ftp_client_lib.dir/Ultility.cpp.o.provides: src/CMakeFiles/ftp_client_lib.dir/Ultility.cpp.o.requires
+	$(MAKE) -f src/CMakeFiles/ftp_client_lib.dir/build.make src/CMakeFiles/ftp_client_lib.dir/Ultility.cpp.o.provides.build
+.PHONY : src/CMakeFiles/ftp_client_lib.dir/Ultility.cpp.o.provides
 
-src/CMakeFiles/ftp_client_lib.dir/Command.cpp.o.provides.build: src/CMakeFiles/ftp_client_lib.dir/Command.cpp.o
+src/CMakeFiles/ftp_client_lib.dir/Ultility.cpp.o.provides.build: src/CMakeFiles/ftp_client_lib.dir/Ultility.cpp.o
 
 
 src/CMakeFiles/ftp_client_lib.dir/FtpService.cpp.o: src/CMakeFiles/ftp_client_lib.dir/flags.make
@@ -107,13 +107,13 @@ src/CMakeFiles/ftp_client_lib.dir/FtpService.cpp.o.provides.build: src/CMakeFile
 
 # Object files for target ftp_client_lib
 ftp_client_lib_OBJECTS = \
-"CMakeFiles/ftp_client_lib.dir/Command.cpp.o" \
+"CMakeFiles/ftp_client_lib.dir/Ultility.cpp.o" \
 "CMakeFiles/ftp_client_lib.dir/FtpService.cpp.o"
 
 # External object files for target ftp_client_lib
 ftp_client_lib_EXTERNAL_OBJECTS =
 
-src/libftp_client_lib.a: src/CMakeFiles/ftp_client_lib.dir/Command.cpp.o
+src/libftp_client_lib.a: src/CMakeFiles/ftp_client_lib.dir/Ultility.cpp.o
 src/libftp_client_lib.a: src/CMakeFiles/ftp_client_lib.dir/FtpService.cpp.o
 src/libftp_client_lib.a: src/CMakeFiles/ftp_client_lib.dir/build.make
 src/libftp_client_lib.a: src/CMakeFiles/ftp_client_lib.dir/link.txt
@@ -126,7 +126,7 @@ src/CMakeFiles/ftp_client_lib.dir/build: src/libftp_client_lib.a
 
 .PHONY : src/CMakeFiles/ftp_client_lib.dir/build
 
-src/CMakeFiles/ftp_client_lib.dir/requires: src/CMakeFiles/ftp_client_lib.dir/Command.cpp.o.requires
+src/CMakeFiles/ftp_client_lib.dir/requires: src/CMakeFiles/ftp_client_lib.dir/Ultility.cpp.o.requires
 src/CMakeFiles/ftp_client_lib.dir/requires: src/CMakeFiles/ftp_client_lib.dir/FtpService.cpp.o.requires
 
 .PHONY : src/CMakeFiles/ftp_client_lib.dir/requires

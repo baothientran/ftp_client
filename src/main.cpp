@@ -27,20 +27,5 @@ int main(int argc, const char **argv) {
         exit(0);
     }
 
-    // connect to ftp server
-    auto ftpService = std::make_unique<FtpService>();
-    auto ftpStat    = ftpService->connectHost(hostAddr, port);
-    if (ftpStat.code == CONNECTION_ERROR) {
-        std::cout << ftpStat.msg << "\n";
-        exit(0);
-    }
-
-    // ready to receive command from user
-    while (true) {
-        std::string cmd;
-        std::cout << "> ";
-        std::getline(std::cin, cmd);
-    }
-
     return 0;
 }

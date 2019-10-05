@@ -11,9 +11,11 @@ memory
 -
 string
 -
-exception
+functional
 -
-map
+vector
+-
+limits
 -
 
 /home/baothientran/Projects/ftp_client/test/FtpServiceTest.cpp

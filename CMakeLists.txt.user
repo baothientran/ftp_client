@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.10.0, 2019-10-03T12:08:00. -->
+<!-- Written by QtCreator 4.10.0, 2019-10-04T20:21:11. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -509,7 +509,7 @@
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName"></value>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">ftp_client_exe</value>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">CMakeProjectManager.CMakeRunConfiguration./home/baothientran/Projects/ftp_client/src///::///ftp_client_exe</value>
-    <value type="QString" key="RunConfiguration.Arguments">10.246.251.93 mylog.txt 21</value>
+    <value type="QString" key="RunConfiguration.Arguments">www.drexel.edu mylog.txt 80</value>
     <value type="uint" key="RunConfiguration.QmlDebugServerPort">3768</value>
     <value type="bool" key="RunConfiguration.UseCppDebugger">false</value>
     <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>

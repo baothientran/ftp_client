@@ -114,16 +114,16 @@
 				</MakeCommands>
 			</Target>
 		</Build>
-		<Unit filename="/home/baothientran/Projects/ftp_client/src/Command.cpp">
-			<Option target="ftp_client_lib"/>
-		</Unit>
-		<Unit filename="/home/baothientran/Projects/ftp_client/src/Command.h">
-			<Option target="ftp_client_lib"/>
-		</Unit>
 		<Unit filename="/home/baothientran/Projects/ftp_client/src/FtpService.cpp">
 			<Option target="ftp_client_lib"/>
 		</Unit>
 		<Unit filename="/home/baothientran/Projects/ftp_client/src/FtpService.h">
+			<Option target="ftp_client_lib"/>
+		</Unit>
+		<Unit filename="/home/baothientran/Projects/ftp_client/src/Ultility.cpp">
+			<Option target="ftp_client_lib"/>
+		</Unit>
+		<Unit filename="/home/baothientran/Projects/ftp_client/src/Ultility.h">
 			<Option target="ftp_client_lib"/>
 		</Unit>
 		<Unit filename="/home/baothientran/Projects/ftp_client/src/main.cpp">
