@@ -1,9 +1,0 @@
-/home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/CMakeFiles/rebuild_cache.dir
-/home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/CMakeFiles/edit_cache.dir
-/home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/src/CMakeFiles/rebuild_cache.dir
-/home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/src/CMakeFiles/edit_cache.dir
-/home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/src/CMakeFiles/ftp_client_lib.dir
-/home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/src/CMakeFiles/ftp_client_exe.dir
-/home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/test/CMakeFiles/rebuild_cache.dir
-/home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/test/CMakeFiles/test_ftp_client.dir
-/home/baothientran/Projects/ftp_client/build-ftp_client-Desktop_Qt_5_11_1_GCC_64bit-Debug/test/CMakeFiles/edit_cache.dir

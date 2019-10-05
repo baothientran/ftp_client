@@ -1,1 +1,0 @@
-/usr/bin/x86_64-linux-gnu-g++  -g   CMakeFiles/ftp_client.dir/main.cpp.o  -o ftp_client 
