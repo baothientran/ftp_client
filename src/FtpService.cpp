@@ -14,6 +14,7 @@
 #include <exception>
 #include <vector>
 #include <bitset>
+#include <algorithm>
 #include "Ultility.h"
 #include "FtpService.h"
 
@@ -60,7 +61,7 @@ struct FtpService::Impl {
     }
 
 
-    bool connectHost(const std::string &host, const std::string &port) {
+    bool connectHost(const std::string &host, const std::string &port, int &sockfd, int *ipver) {
         // get ip address
         int stat;
         addrinfo hint, *ipAddrHdr = nullptr;
@@ -73,35 +74,18 @@ struct FtpService::Impl {
         // loop through all possible ip address to open socket
         addrinfo *ipAddr;
         for (ipAddr = ipAddrHdr; ipAddr; ipAddr = ipAddr->ai_next) {
-            int sockfd = socket(ipAddr->ai_family, ipAddr->ai_socktype, ipAddr->ai_protocol);
-            if (sockfd == -1)
+            int fd = socket(ipAddr->ai_family, ipAddr->ai_socktype, ipAddr->ai_protocol);
+            if (fd == -1)
                 continue;
 
-            if (connect(sockfd, ipAddr->ai_addr, ipAddr->ai_addrlen) == -1) {
-                close(sockfd);
+            if (connect(fd, ipAddr->ai_addr, ipAddr->ai_addrlen) == -1) {
+                close(fd);
                 continue;
             }
 
-            // retrieve local ip address will be used for PORT and EPRT cmd
-            char localIp[INET6_ADDRSTRLEN];
-            int ipver = ipAddr->ai_family;
-            if (ipver == AF_INET) {
-                sockaddr_in addr;
-                socklen_t len = sizeof(sockaddr_in);
-                getsockname(ctrlSockfd, reinterpret_cast<sockaddr*>(&addr), &len);
-                inet_ntop(ipver, &(addr.sin_addr), localIp, sizeof(localIp));
-            }
-            else {
-                sockaddr_in6 addr;
-                socklen_t len = sizeof(sockaddr_in6);
-                getsockname(ctrlSockfd, reinterpret_cast<sockaddr*>(&addr), &len);
-                inet_ntop(ipver, &(addr.sin6_addr), localIp, sizeof(localIp));
-            }
-
-            ctrlSockfd  = sockfd;
-            ctrlPort    = port;
-            ipVersion   = ipAddr->ai_family;
-            localIpAddr = std::string(localIp);
+            sockfd = fd;
+            if (ipver)
+                *ipver = ipAddr->ai_family;
 
             break;
         }
@@ -109,6 +93,26 @@ struct FtpService::Impl {
         freeaddrinfo(ipAddrHdr);
 
         return ipAddr != nullptr;
+    }
+
+
+    void getIpAddress(int ipver, int sockfd, std::string &ipAddress) {
+        // retrieve local ip address will be used for PORT and EPRT cmd
+        char localIp[INET6_ADDRSTRLEN];
+        if (ipver == AF_INET) {
+            sockaddr_in addr;
+            socklen_t len = sizeof(sockaddr_in);
+            getsockname(sockfd, reinterpret_cast<sockaddr*>(&addr), &len);
+            inet_ntop(ipver, &(addr.sin_addr), localIp, sizeof(localIp));
+        }
+        else {
+            sockaddr_in6 addr;
+            socklen_t len = sizeof(sockaddr_in6);
+            getsockname(ctrlSockfd, reinterpret_cast<sockaddr*>(&addr), &len);
+            inet_ntop(ipver, &(addr.sin6_addr), localIp, sizeof(localIp));
+        }
+
+        ipAddress = std::string(localIp);
     }
 
 
@@ -199,9 +203,10 @@ struct FtpService::Impl {
 
     int ctrlSockfd;
     int dataSockfd;
+    bool activeDataMode;
     int ipVersion;
+    std::string hostname;
     std::string localIpAddr;
-    std::string ctrlPort;
 };
 
 
@@ -219,7 +224,17 @@ FtpService::~FtpService() {
 
 
 bool FtpService::openCtrlConnect(const std::string &hostname, uint16_t port) {
-    return _impl->connectHost(hostname, std::to_string(port));
+    int sockfd;
+    int ipver;
+    if(!_impl->connectHost(hostname, std::to_string(port), sockfd, &ipver))
+        return false;
+
+    _impl->ctrlSockfd  = sockfd;
+    _impl->hostname    = hostname;
+    _impl->ipVersion   = ipver;
+    _impl->getIpAddress(ipver, sockfd, _impl->localIpAddr);
+
+    return true;
 }
 
 
@@ -239,32 +254,42 @@ bool FtpService::closeCtrlConnect() {
     _impl->ctrlSockfd  = -1;
     _impl->ipVersion   = -1;
     _impl->localIpAddr = "";
-    _impl->ctrlPort    = "";
 
     return true;
 }
 
 
-bool FtpService::openDataConnect(uint16_t port) {
+bool FtpService::openDataConnect(uint16_t port, bool active) {
     int dataSockfd;
-    if (!_impl->listenHost(std::to_string(port), dataSockfd))
+    bool connectSuccess;
+    if (!active)
+        connectSuccess = _impl->connectHost(_impl->hostname, std::to_string(port), dataSockfd, nullptr);
+    else
+        connectSuccess = _impl->listenHost(std::to_string(port), dataSockfd);
+
+    if (!connectSuccess)
         return false;
 
     _impl->dataSockfd = dataSockfd;
+    _impl->activeDataMode = active;
     return true;
 }
 
 
 bool FtpService::readDataReply(std::vector<char> &buf) {
-    sockaddr_storage peerAddr;
-    socklen_t len = sizeof(peerAddr);
-    int sockfd = accept(_impl->dataSockfd, reinterpret_cast<sockaddr *>(&peerAddr), &len);
-    if (sockfd == -1)
-        return false;
+    if (_impl->activeDataMode) {
+        sockaddr_storage peerAddr;
+        socklen_t len = sizeof(peerAddr);
+        int sockfd = accept(_impl->dataSockfd, reinterpret_cast<sockaddr *>(&peerAddr), &len);
+        if (sockfd == -1)
+            return false;
 
-    bool resRead   = _impl->readDataReply(sockfd, buf);
-    bool resClose  = close(sockfd) == 0;
-    return resRead && resClose;
+        bool resRead   = _impl->readDataReply(sockfd, buf);
+        bool resClose  = close(sockfd) == 0;
+        return resRead && resClose;
+    }
+
+    return _impl->readDataReply(_impl->dataSockfd, buf);
 }
 
 
@@ -273,6 +298,7 @@ bool FtpService::closeDataConnect() {
         return false;
 
     _impl->dataSockfd = -1;
+    _impl->activeDataMode = false;
     return true;
 }
 
@@ -355,8 +381,31 @@ bool FtpService::sendEPRT(uint16_t port) {
 }
 
 
-void FtpService::parsePASVReply(const std::string &pasvReply, uint16_t &port) {
+void FtpService::parsePASVReply(const std::string &pasvReply, std::string &ipAddr, uint16_t &port) {
+    std::string ipAddrPort;
+    bool beginParse = false;
+    for (auto c = pasvReply.rbegin(); c != pasvReply.rend(); ++c) {
+        if (*c == '(')
+            break;
 
+        if (beginParse)
+            ipAddrPort += *c;
+
+        if (*c == ')')
+            beginParse = true;
+
+    }
+
+    std::reverse(ipAddrPort.begin(), ipAddrPort.end());
+    std::vector<std::string> nums = splitString(ipAddrPort, ",");
+
+    // parse ip
+    ipAddr = joinString(nums.begin(), nums.begin() + 4, ".");
+
+    // parse port
+    uint16_t p1 = static_cast<uint16_t>(atoi(nums[4].c_str()));
+    uint16_t p2 = static_cast<uint16_t>(atoi(nums[5].c_str()));
+    port = (p1 << 8 & 0xFFFF) | p2;
 }
 
 

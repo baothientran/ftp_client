@@ -70,7 +70,7 @@ public:
 
     ~FtpService();
 
-    bool openDataConnect(uint16_t port);
+    bool openDataConnect(uint16_t port, bool active);
 
     bool readDataReply(std::vector<char> &buf);
 
@@ -78,13 +78,13 @@ public:
 
     bool openCtrlConnect(const std::string &hostname, uint16_t port);
 
-    bool readCtrlReply(FtpCtrlReply &status);
+    bool readCtrlReply(FtpCtrlReply &reply);
 
     bool closeCtrlConnect();
 
-    bool sendUSER(const std::string &sendUSER);
+    bool sendUSER(const std::string &user);
 
-    bool sendPASS(const std::string &sendPASS);
+    bool sendPASS(const std::string &password);
 
     bool sendCWD(const std::string &path);
 
@@ -102,7 +102,7 @@ public:
 
     bool sendEPRT(uint16_t port);
 
-    static void parsePASVReply(const std::string &pasvReply, uint16_t &port);
+    static void parsePASVReply(const std::string &pasvReply, std::string &ipAddr, uint16_t &port);
 
     static void parseEPSVReply(const std::string &epsvReply, uint16_t &port);
 
