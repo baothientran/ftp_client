@@ -1,5 +1,5 @@
-#ifndef ULTILITY_H
-#define ULTILITY_H
+#ifndef UTILITY_H
+#define UTILITY_H
 
 #include <string>
 #include <vector>

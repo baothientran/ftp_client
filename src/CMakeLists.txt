@@ -1,11 +1,13 @@
 project(ftp_client_lib LANGUAGES CXX)
 
 set(src
-    "Ultility.cpp"
+    "Cmd.cpp"
+    "Utility.cpp"
     "FtpService.cpp")
 
 set(header
-    "Ultility.h"
+    "Cmd.h"
+    "Utility.h"
     "FtpService.h")
 
 add_library(ftp_client_lib

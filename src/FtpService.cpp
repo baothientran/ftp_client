@@ -15,14 +15,25 @@
 #include <vector>
 #include <bitset>
 #include <algorithm>
-#include "Ultility.h"
+#include "Utility.h"
 #include "FtpService.h"
 
 
-static const int      BUFFER_SIZE_MIN  = 2048;
-static const int      LISTEN_QUEUE_MAX = 100;
+static const int BUFFER_SIZE_MIN  = 2048;
+static const int LISTEN_QUEUE_MAX = 100;
 
 struct FtpService::Impl {
+    bool acceptHost(int listenSockfd, int &sockfd) {
+        sockaddr_storage peerAddr;
+        socklen_t len = sizeof(peerAddr);
+        sockfd = accept(listenSockfd, reinterpret_cast<sockaddr *>(&peerAddr), &len);
+        if (sockfd == -1)
+            return false;
+
+        return true;
+    }
+
+
     bool listenHost(const std::string &port, int &outSockfd) {
         // get ip address
         int stat;
@@ -61,7 +72,7 @@ struct FtpService::Impl {
     }
 
 
-    bool connectHost(const std::string &host, const std::string &port, int &sockfd, int *ipver) {
+    bool connectHost(const std::string &host, const std::string &port, int &sockfd, NetProtocol *ipver) {
         // get ip address
         int stat;
         addrinfo hint, *ipAddrHdr = nullptr;
@@ -84,8 +95,9 @@ struct FtpService::Impl {
             }
 
             sockfd = fd;
-            if (ipver)
-                *ipver = ipAddr->ai_family;
+            if (ipver) {
+                *ipver = ipAddr->ai_family == AF_INET ? IPv4 : IPv6;
+            }
 
             break;
         }
@@ -96,63 +108,23 @@ struct FtpService::Impl {
     }
 
 
-    void getIpAddress(int ipver, int sockfd, std::string &ipAddress) {
+    void getIpAddress(NetProtocol protocol, int sockfd, std::string &ipAddress) {
         // retrieve local ip address will be used for PORT and EPRT cmd
         char localIp[INET6_ADDRSTRLEN];
-        if (ipver == AF_INET) {
+        if (protocol == IPv4) {
             sockaddr_in addr;
             socklen_t len = sizeof(sockaddr_in);
             getsockname(sockfd, reinterpret_cast<sockaddr*>(&addr), &len);
-            inet_ntop(ipver, &(addr.sin_addr), localIp, sizeof(localIp));
+            inet_ntop(AF_INET, &(addr.sin_addr), localIp, sizeof(localIp));
         }
         else {
             sockaddr_in6 addr;
             socklen_t len = sizeof(sockaddr_in6);
             getsockname(ctrlSockfd, reinterpret_cast<sockaddr*>(&addr), &len);
-            inet_ntop(ipver, &(addr.sin6_addr), localIp, sizeof(localIp));
+            inet_ntop(AF_INET6, &(addr.sin6_addr), localIp, sizeof(localIp));
         }
 
         ipAddress = std::string(localIp);
-    }
-
-
-    bool writeCtrlCmd(const std::string &cmd) {
-        bool res = true;
-        size_t writeSofar = 0;
-        const char *wbuf = reinterpret_cast<const char *>(cmd.c_str());
-        while (writeSofar < cmd.size()) {
-            auto wn = write(ctrlSockfd, wbuf + writeSofar, cmd.size() - writeSofar);
-            if (wn < 0) {
-                res = false;
-                break;
-            }
-
-            writeSofar += static_cast<size_t>(wn);
-        }
-
-        return res;
-    }
-
-
-    bool readCtrlReply(std::string &line) {
-        char ch;
-        ssize_t rn;
-        bool res = true;
-
-        line = "";
-        do {
-            rn = read(ctrlSockfd, &ch, 1);
-            if (rn == -1) {
-                res = false;
-                break;
-            }
-            if (rn == 0)
-                break;
-
-            line += ch;
-        } while (ch != '\n');
-
-        return res;
     }
 
 
@@ -169,12 +141,12 @@ struct FtpService::Impl {
     }
 
 
-    bool readDataReply(int sockfd, std::vector<char> &buf) {
+    bool readDataReply(int sockfd, std::vector<unsigned char> &buf) {
         char rb[BUFFER_SIZE_MIN];
         buf.reserve(BUFFER_SIZE_MIN);
 
         int rn;
-        while ((rn = readDataEnsure(sockfd, rb, BUFFER_SIZE_MIN)) > 0) {
+        while ((rn = readSockEnsure(sockfd, rb, BUFFER_SIZE_MIN)) > 0) {
             std::copy(rb, rb + rn, std::back_inserter(buf));
         }
 
@@ -182,11 +154,49 @@ struct FtpService::Impl {
     }
 
 
-    int readDataEnsure(int sockfd, char *buf, int size) {
-        unsigned char *rbuf = reinterpret_cast<unsigned char *>(buf);
+    bool writeSockEnsure(int sockfd, const unsigned char *buf, size_t size) {
+        bool res = true;
+        size_t writeSofar = 0;
+        while (writeSofar < size) {
+            auto wn = write(sockfd, buf + writeSofar, size - writeSofar);
+            if (wn < 0) {
+                res = false;
+                break;
+            }
+
+            writeSofar += static_cast<size_t>(wn);
+        }
+
+        return res;
+    }
+
+
+    bool readLineSockEnsure(int sockfd, std::string &line) {
+        char ch;
+        ssize_t rn;
+        bool res = true;
+
+        line = "";
+        do {
+            rn = read(sockfd, &ch, 1);
+            if (rn == -1) {
+                res = false;
+                break;
+            }
+            if (rn == 0)
+                break;
+
+            line += ch;
+        } while (ch != '\n');
+
+        return res;
+    }
+
+
+    int readSockEnsure(int sockfd, char *buf, int size) {
         int readSoFar = 0;
         while (readSoFar < size) {
-            auto rn = read(sockfd, rbuf + readSoFar, static_cast<unsigned long>(size - readSoFar));
+            auto rn = read(sockfd, buf + readSoFar, static_cast<unsigned long>(size - readSoFar));
             if (rn == -1) {
                 readSoFar = -1;
                 break;
@@ -204,7 +214,7 @@ struct FtpService::Impl {
     int ctrlSockfd;
     int dataSockfd;
     bool activeDataMode;
-    int ipVersion;
+    NetProtocol netProtocol;
     std::string hostname;
     std::string localIpAddr;
 };
@@ -223,15 +233,20 @@ FtpService::~FtpService() {
 }
 
 
+NetProtocol FtpService::netProtocol() const {
+    return _impl->netProtocol;
+}
+
+
 bool FtpService::openCtrlConnect(const std::string &hostname, uint16_t port) {
     int sockfd;
-    int ipver;
+    NetProtocol ipver;
     if(!_impl->connectHost(hostname, std::to_string(port), sockfd, &ipver))
         return false;
 
-    _impl->ctrlSockfd  = sockfd;
-    _impl->hostname    = hostname;
-    _impl->ipVersion   = ipver;
+    _impl->ctrlSockfd    = sockfd;
+    _impl->hostname      = hostname;
+    _impl->netProtocol   = ipver;
     _impl->getIpAddress(ipver, sockfd, _impl->localIpAddr);
 
     return true;
@@ -239,7 +254,7 @@ bool FtpService::openCtrlConnect(const std::string &hostname, uint16_t port) {
 
 
 bool FtpService::readCtrlReply(FtpCtrlReply &reply) {
-    if (!_impl->readCtrlReply(reply.msg))
+    if (!_impl->readLineSockEnsure(_impl->ctrlSockfd, reply.msg))
         return false;
 
     _impl->parseCtrlReplyCode(reply.msg, reply.code);
@@ -252,7 +267,7 @@ bool FtpService::closeCtrlConnect() {
         return false;
 
     _impl->ctrlSockfd  = -1;
-    _impl->ipVersion   = -1;
+    _impl->netProtocol = UNSPECIFIED;
     _impl->localIpAddr = "";
 
     return true;
@@ -276,12 +291,25 @@ bool FtpService::openDataConnect(uint16_t port, bool active) {
 }
 
 
-bool FtpService::readDataReply(std::vector<char> &buf) {
+bool FtpService::sendDataConnect(const std::vector<unsigned char> &buf) {
     if (_impl->activeDataMode) {
-        sockaddr_storage peerAddr;
-        socklen_t len = sizeof(peerAddr);
-        int sockfd = accept(_impl->dataSockfd, reinterpret_cast<sockaddr *>(&peerAddr), &len);
-        if (sockfd == -1)
+        int sockfd;
+        if (!_impl->acceptHost(_impl->dataSockfd, sockfd))
+            return false;
+
+        bool resRead   = _impl->writeSockEnsure(sockfd, buf.data(), buf.size());
+        bool resClose  = close(sockfd) == 0;
+        return resRead && resClose;
+    }
+
+    return _impl->writeSockEnsure(_impl->dataSockfd, buf.data(), buf.size());
+}
+
+
+bool FtpService::readDataReply(std::vector<unsigned char> &buf) {
+    if (_impl->activeDataMode) {
+        int sockfd;
+        if (!_impl->acceptHost(_impl->dataSockfd, sockfd))
             return false;
 
         bool resRead   = _impl->readDataReply(sockfd, buf);
@@ -297,7 +325,7 @@ bool FtpService::closeDataConnect() {
     if (close(_impl->dataSockfd) != 0)
         return false;
 
-    _impl->dataSockfd = -1;
+    _impl->dataSockfd     = -1;
     _impl->activeDataMode = false;
     return true;
 }
@@ -305,51 +333,60 @@ bool FtpService::closeDataConnect() {
 
 bool FtpService::sendUSER(const std::string &username) {
     std::string cmd = "USER " + username + "\r\n";
-    return _impl->writeCtrlCmd(cmd);
+    return _impl->writeSockEnsure(_impl->ctrlSockfd, reinterpret_cast<const unsigned char *>(cmd.c_str()), cmd.size());
 }
 
 
 bool FtpService::sendPASS(const std::string &password) {
     std::string cmd = "PASS " + password + "\r\n";
-    return _impl->writeCtrlCmd(cmd);
+    return _impl->writeSockEnsure(_impl->ctrlSockfd, reinterpret_cast<const unsigned char *>(cmd.c_str()), cmd.size());
 }
 
 
 bool FtpService::sendCWD(const std::string &path) {
     std::string cmd = "CWD " + path + "\r\n";
-    return _impl->writeCtrlCmd(cmd);
+    return _impl->writeSockEnsure(_impl->ctrlSockfd, reinterpret_cast<const unsigned char *>(cmd.c_str()), cmd.size());
 }
 
 
 bool FtpService::sendPWD() {
     std::string cmd = "PWD\r\n";
-    return _impl->writeCtrlCmd(cmd);
+    return _impl->writeSockEnsure(_impl->ctrlSockfd, reinterpret_cast<const unsigned char *>(cmd.c_str()), cmd.size());
 }
 
 
 bool FtpService::sendQUIT() {
     std::string cmd = "QUIT\r\n";
-    return _impl->writeCtrlCmd(cmd);
+    return _impl->writeSockEnsure(_impl->ctrlSockfd, reinterpret_cast<const unsigned char *>(cmd.c_str()), cmd.size());
 }
 
 
 bool FtpService::sendLIST(const std::string &path) {
     std::string space = path.empty() ? "" : " ";
     std::string cmd = "LIST" + space + path + "\r\n";
-    return _impl->writeCtrlCmd(cmd);
+    return _impl->writeSockEnsure(_impl->ctrlSockfd, reinterpret_cast<const unsigned char *>(cmd.c_str()), cmd.size());
 }
 
 
 bool FtpService::sendPASV() {
     std::string cmd = "PASV\r\n";
-    return _impl->writeCtrlCmd(cmd);
+    return _impl->writeSockEnsure(_impl->ctrlSockfd, reinterpret_cast<const unsigned char *>(cmd.c_str()), cmd.size());
 }
 
 
-bool FtpService::sendEPSV(const std::string &networkProtocol) {
-    std::string space = networkProtocol.empty() ? "" : " ";
-    std::string cmd = "EPSV" + space + networkProtocol + "\r\n";
-    return _impl->writeCtrlCmd(cmd);
+bool FtpService::sendEPSV(bool argALL, NetProtocol netProtocol) {
+    std::string args;
+    if (argALL)
+        args = " ALL";
+    else if (netProtocol == IPv4)
+        args = " 1";
+    else if (netProtocol == IPv6)
+        args = " 2";
+    else
+        args = "";
+
+    std::string cmd = "EPSV" + args + "\r\n";
+    return _impl->writeSockEnsure(_impl->ctrlSockfd, reinterpret_cast<const unsigned char *>(cmd.c_str()), cmd.size());
 }
 
 
@@ -366,18 +403,32 @@ bool FtpService::sendPORT(uint16_t port) {
     std::string p2 = std::to_string(port & 0x00FF);
     cmd += p1 + "," + p2 + "\r\n";
 
-    return _impl->writeCtrlCmd(cmd);
+    return _impl->writeSockEnsure(_impl->ctrlSockfd, reinterpret_cast<const unsigned char *>(cmd.c_str()), cmd.size());
 }
 
 
-bool FtpService::sendEPRT(uint16_t port) {
+bool FtpService::sendEPRT(NetProtocol netProtocol, uint16_t port) {
     std::string cmd = "EPRT ";
-    if (_impl->ipVersion == AF_INET)
+    if (netProtocol == IPv4)
         cmd += "|1|" + _impl->localIpAddr + "|" + std::to_string(port) + "|";
-    else
+    else if (netProtocol == IPv6)
         cmd += "|2|" + _impl->localIpAddr + "|" + std::to_string(port) + "|";
+    else
+        return false;
 
-    return _impl->writeCtrlCmd(cmd);
+    return _impl->writeSockEnsure(_impl->ctrlSockfd, reinterpret_cast<const unsigned char *>(cmd.c_str()), cmd.size());
+}
+
+
+bool FtpService::sendRETR(const std::string &filePath) {
+    std::string cmd = "RETR " + filePath + "\r\n";
+    return _impl->writeSockEnsure(_impl->ctrlSockfd, reinterpret_cast<const unsigned char *>(cmd.c_str()), cmd.size());
+}
+
+
+bool FtpService::sendSTOR(const std::string &filePath) {
+    std::string cmd = "STOR " + filePath + "\r\n";
+    return _impl->writeSockEnsure(_impl->ctrlSockfd, reinterpret_cast<const unsigned char *>(cmd.c_str()), cmd.size());
 }
 
 
@@ -393,7 +444,6 @@ void FtpService::parsePASVReply(const std::string &pasvReply, std::string &ipAdd
 
         if (*c == ')')
             beginParse = true;
-
     }
 
     std::reverse(ipAddrPort.begin(), ipAddrPort.end());
@@ -410,5 +460,19 @@ void FtpService::parsePASVReply(const std::string &pasvReply, std::string &ipAdd
 
 
 void FtpService::parseEPSVReply(const std::string &epsvReply, uint16_t &port) {
+    std::string portStr;
+    bool beginParse = false;
+    for (auto c = epsvReply.rbegin(); c != epsvReply.rend(); ++c) {
+        if (*c == '(')
+            break;
 
+        if (beginParse && (*c >= '0' && *c <= '9'))
+            portStr += *c;
+
+        if (*c == ')')
+            beginParse = true;
+    }
+
+    std::reverse(portStr.begin(), portStr.end());
+    port = static_cast<uint16_t>(atoi(portStr.c_str()));
 }

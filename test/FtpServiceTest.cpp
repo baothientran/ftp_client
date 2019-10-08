@@ -237,14 +237,14 @@ TEST_CASE("FtpService send LIST command", "[FtpService]") {
         REQUIRE(stat.code == FILE_STATUS_OK_OPEN_DATA_CONNECTION);
         REQUIRE(stat.msg  == "150 Here comes the directory listing.\r\n");
 
-        REQUIRE(ftpService->readCtrlReply(stat) == true);
-        REQUIRE(stat.code == CLOSE_DATA_CONNECTION_REQUEST_FILE_ACTION_SUCCESS);
-        REQUIRE(stat.msg  == "226 Directory send OK.\r\n");
-
-        std::vector<char> buf;
+        std::vector<unsigned char> buf;
         REQUIRE(ftpService->readDataReply(buf) == true);
         REQUIRE(buf.size() > 0);
         REQUIRE(ftpService->closeDataConnect() == true);
+
+        REQUIRE(ftpService->readCtrlReply(stat) == true);
+        REQUIRE(stat.code == CLOSE_DATA_CONNECTION_REQUEST_FILE_ACTION_SUCCESS);
+        REQUIRE(stat.msg  == "226 Directory send OK.\r\n");
     }
 
     SECTION("list passive mode") {
@@ -266,13 +266,133 @@ TEST_CASE("FtpService send LIST command", "[FtpService]") {
         REQUIRE(stat.code == FILE_STATUS_OK_OPEN_DATA_CONNECTION);
         REQUIRE(stat.msg  == "150 Here comes the directory listing.\r\n");
 
-        REQUIRE(ftpService->readCtrlReply(stat) == true);
-        REQUIRE(stat.code == CLOSE_DATA_CONNECTION_REQUEST_FILE_ACTION_SUCCESS);
-        REQUIRE(stat.msg  == "226 Directory send OK.\r\n");
-
-        std::vector<char> buf;
+        std::vector<unsigned char> buf;
         REQUIRE(ftpService->readDataReply(buf) == true);
         REQUIRE(buf.size() > 0);
         REQUIRE(ftpService->closeDataConnect() == true);
+
+        REQUIRE(ftpService->readCtrlReply(stat) == true);
+        REQUIRE(stat.code == CLOSE_DATA_CONNECTION_REQUEST_FILE_ACTION_SUCCESS);
+        REQUIRE(stat.msg  == "226 Directory send OK.\r\n");
+    }
+}
+
+
+TEST_CASE("FtpService send STOR command", "[ftpService]") {
+    SECTION("stor active mode") {
+        auto ftpService = std::make_unique<FtpService>();
+        connectLegitServer(*ftpService);
+
+        FtpCtrlReply stat;
+        REQUIRE(ftpService->sendPORT(30000));
+        REQUIRE(ftpService->readCtrlReply(stat) == true);
+        REQUIRE(stat.code == COMMAND_OK);
+        REQUIRE(stat.msg == "200 PORT command successful. Consider using PASV.\r\n");
+
+        REQUIRE(ftpService->openDataConnect(30000, true));
+
+        REQUIRE(ftpService->sendSTOR("test.txt") == true);
+        REQUIRE(ftpService->readCtrlReply(stat) == true);
+        REQUIRE(stat.code == FILE_STATUS_OK_OPEN_DATA_CONNECTION);
+        REQUIRE(stat.msg  == "150 Ok to send data.\r\n");
+
+        std::string content = "this is a test content.";
+        std::vector<unsigned char> buf;
+        std::copy(content.begin(), content.end(), std::back_inserter(buf));
+        REQUIRE(ftpService->sendDataConnect(buf) == true);
+        REQUIRE(ftpService->closeDataConnect() == true);
+
+        REQUIRE(ftpService->readCtrlReply(stat) == true);
+        REQUIRE(stat.code == CLOSE_DATA_CONNECTION_REQUEST_FILE_ACTION_SUCCESS);
+        REQUIRE(stat.msg  == "226 Transfer complete.\r\n");
+    }
+
+    SECTION("stor passive mode") {
+        auto ftpService = std::make_unique<FtpService>();
+        connectLegitServer(*ftpService);
+
+        FtpCtrlReply stat;
+        REQUIRE(ftpService->sendPASV());
+        REQUIRE(ftpService->readCtrlReply(stat) == true);
+        REQUIRE(stat.code == ENTERING_PASSIVE_MODE);
+
+        uint16_t passivePort;
+        std::string ipAddr;
+        FtpService::parsePASVReply(stat.msg, ipAddr, passivePort);
+        REQUIRE(ftpService->openDataConnect(passivePort, false));
+
+        REQUIRE(ftpService->sendSTOR("test.txt") == true);
+        REQUIRE(ftpService->readCtrlReply(stat) == true);
+        REQUIRE(stat.code == FILE_STATUS_OK_OPEN_DATA_CONNECTION);
+        REQUIRE(stat.msg  == "150 Ok to send data.\r\n");
+
+        std::string content = "this is a test content.";
+        std::vector<unsigned char> buf;
+        std::copy(content.begin(), content.end(), std::back_inserter(buf));
+        REQUIRE(ftpService->sendDataConnect(buf) == true);
+        REQUIRE(ftpService->closeDataConnect() == true);
+
+        REQUIRE(ftpService->readCtrlReply(stat) == true);
+        REQUIRE(stat.code == CLOSE_DATA_CONNECTION_REQUEST_FILE_ACTION_SUCCESS);
+        REQUIRE(stat.msg  == "226 Transfer complete.\r\n");
+    }
+}
+
+
+TEST_CASE("FtpService send RETR command", "[ftpService]") {
+    SECTION("retr active mode") {
+        auto ftpService = std::make_unique<FtpService>();
+        connectLegitServer(*ftpService);
+
+        FtpCtrlReply stat;
+        REQUIRE(ftpService->sendPORT(30000));
+        REQUIRE(ftpService->readCtrlReply(stat) == true);
+        REQUIRE(stat.code == COMMAND_OK);
+        REQUIRE(stat.msg == "200 PORT command successful. Consider using PASV.\r\n");
+
+        REQUIRE(ftpService->openDataConnect(30000, true));
+
+        REQUIRE(ftpService->sendRETR("ftp-rfcs.txt") == true);
+        REQUIRE(ftpService->readCtrlReply(stat) == true);
+        REQUIRE(stat.code == FILE_STATUS_OK_OPEN_DATA_CONNECTION);
+        REQUIRE(stat.msg  == "150 Opening BINARY mode data connection for ftp-rfcs.txt (321080 bytes).\r\n");
+
+        std::vector<unsigned char> buf;
+        REQUIRE(ftpService->readDataReply(buf) == true);
+        REQUIRE(buf.size() > 0);
+        REQUIRE(ftpService->closeDataConnect() == true);
+
+        REQUIRE(ftpService->readCtrlReply(stat) == true);
+        REQUIRE(stat.code == CLOSE_DATA_CONNECTION_REQUEST_FILE_ACTION_SUCCESS);
+        REQUIRE(stat.msg  == "226 Transfer complete.\r\n");
+    }
+
+    SECTION("retr passive mode") {
+        auto ftpService = std::make_unique<FtpService>();
+        connectLegitServer(*ftpService);
+
+        FtpCtrlReply stat;
+        REQUIRE(ftpService->sendPASV());
+        REQUIRE(ftpService->readCtrlReply(stat) == true);
+        REQUIRE(stat.code == ENTERING_PASSIVE_MODE);
+
+        uint16_t passivePort;
+        std::string ipAddr;
+        FtpService::parsePASVReply(stat.msg, ipAddr, passivePort);
+        REQUIRE(ftpService->openDataConnect(passivePort, false));
+
+        REQUIRE(ftpService->sendRETR("ftp-rfcs.txt") == true);
+        REQUIRE(ftpService->readCtrlReply(stat) == true);
+        REQUIRE(stat.code == FILE_STATUS_OK_OPEN_DATA_CONNECTION);
+        REQUIRE(stat.msg  == "150 Opening BINARY mode data connection for ftp-rfcs.txt (321080 bytes).\r\n");
+
+        std::vector<unsigned char> buf;
+        REQUIRE(ftpService->readDataReply(buf) == true);
+        REQUIRE(buf.size() > 0);
+        REQUIRE(ftpService->closeDataConnect() == true);
+
+        REQUIRE(ftpService->readCtrlReply(stat) == true);
+        REQUIRE(stat.code == CLOSE_DATA_CONNECTION_REQUEST_FILE_ACTION_SUCCESS);
+        REQUIRE(stat.msg  == "226 Transfer complete.\r\n");
     }
 }

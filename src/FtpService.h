@@ -9,6 +9,7 @@
 
 
 enum FtpCode {
+    // RFC 959 reply code
     COMMAND_OK = 200,
     COMMAND_NOT_RECOGNIZED = 500,
     COMMAND_ARGS_NOT_RECOGNIZED = 501,
@@ -49,7 +50,18 @@ enum FtpCode {
     REQUESTED_ACTION_ABORTED_PAGE_TYPE_UNKNOWN = 551,
     REQUESTED_ACTION_NOT_TAKEN_INSUFFICIENT_STORAGE = 452,
     REQUESTED_ACTION_ABORTED_EXCEEDED_STORAGE_ALLOCATION = 552,
-    REQUESTED_ACTION_NOT_TAKEN_FILENAME_NOT_ALLOWED = 553
+    REQUESTED_ACTION_NOT_TAKEN_FILENAME_NOT_ALLOWED = 553,
+
+    // RFC 2428 reply code
+    NETWORK_PROTOCOL_NOT_SUPPORTED = 522,
+    ENTERING_EXTENDED_PASSIVE_MODE = 229,
+};
+
+
+enum NetProtocol {
+    UNSPECIFIED = 0,
+    IPv4 = 1,
+    IPv6 = 2,
 };
 
 
@@ -70,9 +82,13 @@ public:
 
     ~FtpService();
 
+    NetProtocol netProtocol() const;
+
     bool openDataConnect(uint16_t port, bool active);
 
-    bool readDataReply(std::vector<char> &buf);
+    bool sendDataConnect(const std::vector<unsigned char> &buf);
+
+    bool readDataReply(std::vector<unsigned char> &buf);
 
     bool closeDataConnect();
 
@@ -96,15 +112,19 @@ public:
 
     bool sendPASV();
 
-    bool sendEPSV(const std::string &networkProtocol);
+    bool sendEPSV(bool argALL, NetProtocol netProtocol); // not tested
 
     bool sendPORT(uint16_t port);
 
-    bool sendEPRT(uint16_t port);
+    bool sendEPRT(NetProtocol netProtocol, uint16_t port); // not tested
+
+    bool sendRETR(const std::string &filePath);
+
+    bool sendSTOR(const std::string &filePath);
 
     static void parsePASVReply(const std::string &pasvReply, std::string &ipAddr, uint16_t &port);
 
-    static void parseEPSVReply(const std::string &epsvReply, uint16_t &port);
+    static void parseEPSVReply(const std::string &epsvReply, uint16_t &port); // not tested
 
     static const uint32_t USABLE_PORT_MIN  = 1024;
 
