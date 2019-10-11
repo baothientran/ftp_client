@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
-#include "FtpService.h"
+#include "Cmd.h"
+#include "Utility.h"
 
 
 const std::string DEFAULT_FTP_PORT = "21";
@@ -16,16 +17,31 @@ void displayUsage() {
 
 int main(int argc, const char **argv) {
     // parsing command line
-    std::string hostAddr, logFile, port;
+    std::string hostname, logFile;
+    uint16_t port;
     if (argc == 3 || argc == 4) {
-        hostAddr = argv[1];
+        hostname = argv[1];
         logFile  = argv[2];
-        port     = argc == 4 ? argv[3] : DEFAULT_FTP_PORT;
+
+        std::string portStr  = argc == 4 ? argv[3] : DEFAULT_FTP_PORT;
+        int res = toUnsignedInt<uint16_t>(portStr, port);
+        if (res == -1) {
+            std::cout << "Port not a number.\n";
+            exit(0);
+        }
+        else if (res == 1) {
+            std::cout << "Port number overflow.\n";
+            exit(0);
+        }
     }
     else {
         displayUsage();
         exit(0);
     }
 
-    return 0;
+    // run command service
+    CommandService cmdService(hostname, port);
+    cmdService.run();
+
+    exit(0);
 }

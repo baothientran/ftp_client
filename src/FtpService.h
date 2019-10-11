@@ -6,6 +6,10 @@
 #include <functional>
 #include <vector>
 #include <limits>
+#include <exception>
+
+
+using Byte = unsigned char;
 
 
 enum FtpCode {
@@ -65,6 +69,17 @@ enum NetProtocol {
 };
 
 
+class SocketException : public std::exception {
+public:
+    SocketException() = default;
+
+    ~SocketException() override;
+
+    const char *what() const noexcept override;
+};
+
+
+
 struct FtpCtrlReply {
     FtpCode code;
     std::string msg;
@@ -84,51 +99,51 @@ public:
 
     NetProtocol netProtocol() const;
 
-    bool openDataConnect(uint16_t port, bool active);
+    void openDataConnect(uint16_t port, bool active);
 
-    bool sendDataConnect(const std::vector<unsigned char> &buf);
+    void sendDataConnect(const std::vector<Byte> &buf);
 
-    bool readDataReply(std::vector<unsigned char> &buf);
+    void readDataReply(std::vector<Byte> &buf);
 
-    bool closeDataConnect();
+    void closeDataConnect();
 
-    bool openCtrlConnect(const std::string &hostname, uint16_t port);
+    void openCtrlConnect(const std::string &hostname, uint16_t port);
 
-    bool readCtrlReply(FtpCtrlReply &reply);
+    void readCtrlReply(FtpCtrlReply &reply);
 
-    bool closeCtrlConnect();
+    void closeCtrlConnect();
 
-    bool sendUSER(const std::string &user);
+    void sendUSER(const std::string &user);
 
-    bool sendPASS(const std::string &password);
+    void sendPASS(const std::string &password);
 
-    bool sendCWD(const std::string &path);
+    void sendCWD(const std::string &path);
 
-    bool sendPWD();
+    void sendPWD();
 
-    bool sendLIST(const std::string &path);
+    void sendLIST(const std::string &path);
 
-    bool sendQUIT();
+    void sendQUIT();
 
-    bool sendPASV();
+    void sendPASV();
 
-    bool sendEPSV(bool argALL, NetProtocol netProtocol); // not tested
+    void sendEPSV(bool argALL, NetProtocol netProtocol); // not tested
 
-    bool sendPORT(uint16_t port);
+    void sendPORT(uint16_t port);
 
-    bool sendEPRT(NetProtocol netProtocol, uint16_t port); // not tested
+    void sendEPRT(NetProtocol netProtocol, uint16_t port); // not tested
 
-    bool sendRETR(const std::string &filePath);
+    void sendRETR(const std::string &filePath);
 
-    bool sendSTOR(const std::string &filePath);
+    void sendSTOR(const std::string &filePath);
 
     static void parsePASVReply(const std::string &pasvReply, std::string &ipAddr, uint16_t &port);
 
     static void parseEPSVReply(const std::string &epsvReply, uint16_t &port); // not tested
 
-    static const uint32_t USABLE_PORT_MIN  = 1024;
+    static const uint16_t USABLE_PORT_MIN  = 1024;
 
-    static const uint32_t USABLE_PORT_MAX  = std::numeric_limits<uint16_t>::max();
+    static const uint16_t USABLE_PORT_MAX  = std::numeric_limits<uint16_t>::max();
 
 private:
     struct Impl;

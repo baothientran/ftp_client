@@ -1,3 +1,5 @@
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "Utility.h"
 
 
@@ -13,4 +15,10 @@ std::vector<std::string> splitString(const std::string &str, const std::string &
     res.push_back(str.substr(prev));
 
     return res;
+}
+
+
+bool isRegularFile(const std::string &file) {
+    struct stat fstat;
+    return stat(file.c_str(), &fstat) == 0 && S_ISREG(fstat.st_mode);
 }

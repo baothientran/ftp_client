@@ -3,8 +3,14 @@
 
 #include <string>
 #include <vector>
+#include <limits>
+
+
+bool isRegularFile(const std::string &file);
+
 
 std::vector<std::string> splitString(const std::string &str, const std::string &token);
+
 
 template<typename Iter>
 std::string joinString(Iter begin, Iter end, const std::string &token) {
@@ -16,6 +22,27 @@ std::string joinString(Iter begin, Iter end, const std::string &token) {
     }
 
     return res;
+}
+
+
+template<typename UnsigedInt>
+int toUnsignedInt(const std::string &str, UnsigedInt &res) {
+    uint64_t num = 0;
+    for (auto c = str.begin(); c != str.end(); ++c) {
+
+        if (*c >= '0' && *c <= '9') {
+            UnsigedInt digit = *c - '0';
+            if (num <= std::numeric_limits<UnsigedInt>::max() - digit)
+                num = num * 10 + digit;
+            else
+                return 1;
+        }
+        else
+            return -1;
+    }
+
+    res = num;
+    return 0;
 }
 
 #endif
