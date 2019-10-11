@@ -4,7 +4,11 @@
 
 #include <vector>
 #include <string>
+#include <map>
 #include "FtpService.h"
+
+
+class Command;
 
 
 class CommandService {
@@ -29,6 +33,8 @@ public:
 
     void setServiceShouldTerminate(bool terminate);
 
+    const std::map<std::string, std::unique_ptr<Command>> &commands() const;
+
     void run();
 
 private:
@@ -42,6 +48,8 @@ public:
     Command(FtpService *ftp, CommandService *cmd);
 
     virtual ~Command();
+
+    virtual void displayHelp() = 0;
 
     virtual void execute(const std::vector<std::string> &argvs) = 0;
 
@@ -63,11 +71,27 @@ private:
 };
 
 
+class HelpCommand : public Command {
+public:
+    HelpCommand(FtpService *ftp, CommandService *cmd)
+        : Command{ftp, cmd}
+    {}
+
+    void displayHelp() override;
+
+    void execute(const std::vector<std::string> &argvs) override;
+
+    static const std::string PROG;
+};
+
+
 class ConnectCommand : public Command {
 public:
     ConnectCommand(FtpService *ftp, CommandService *cmd)
         : Command{ftp, cmd}
     {}
+
+    void displayHelp() override;
 
     void execute(const std::vector<std::string> &argvs) override;
 
@@ -81,6 +105,8 @@ public:
         : Command{ftp, cmd}
     {}
 
+    void displayHelp() override;
+
     void execute(const std::vector<std::string> &argvs) override;
 
     static const std::string PROG;
@@ -92,6 +118,8 @@ public:
     QuitCommand(FtpService *ftp, CommandService *cmd)
         : Command{ftp, cmd}
     {}
+
+    void displayHelp() override;
 
     void execute(const std::vector<std::string> &argvs) override;
 
@@ -105,6 +133,8 @@ public:
         : Command{ftp, cmd}
     {}
 
+    void displayHelp() override;
+
     void execute(const std::vector<std::string> &argvs) override;
 
     static const std::string PROG;
@@ -116,6 +146,8 @@ public:
     PwdCommand(FtpService *ftp, CommandService *cmd)
         : Command{ftp, cmd}
     {}
+
+    void displayHelp() override;
 
     void execute(const std::vector<std::string> &argvs) override;
 
@@ -129,6 +161,8 @@ public:
         : Command{ftp, cmd}
     {}
 
+    void displayHelp() override;
+
     void execute(const std::vector<std::string> &argvs) override;
 
     static const std::string PROG;
@@ -140,6 +174,8 @@ public:
     GetCommand(FtpService *ftp, CommandService *cmd)
         : Command{ftp, cmd}
     {}
+
+    void displayHelp() override;
 
     void execute(const std::vector<std::string> &argvs) override;
 
@@ -153,6 +189,8 @@ public:
         : Command{ftp, cmd}
     {}
 
+    void displayHelp() override;
+
     void execute(const std::vector<std::string> &argvs) override;
 
     static const std::string PROG;
@@ -164,6 +202,8 @@ public:
     PassiveCommand(FtpService *ftp, CommandService *cmd)
         : Command{ftp, cmd}
     {}
+
+    void displayHelp() override;
 
     void execute(const std::vector<std::string> &argvs) override;
 

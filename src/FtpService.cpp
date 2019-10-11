@@ -57,7 +57,7 @@ struct FtpService::Impl {
                                   listen(sockfd, LISTEN_QUEUE_MAX)                                  == -1;
 
             if (socketUnusable) {
-                close(sockfd);
+                closeSocket(sockfd);
                 continue;
             }
 
