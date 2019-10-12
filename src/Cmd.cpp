@@ -390,7 +390,7 @@ void CdCommand::execute(const std::vector<std::string> &argvs) {
         return;
 
     if (argvs.size() < 2) {
-        std::cout << "Syntax error. Required path name\n";
+        displayHelp();
         return;
     }
     const std::string &remotePath = argvs[1];
@@ -483,7 +483,7 @@ void GetCommand::execute(const std::vector<std::string> &argvs) {
         return;
 
     if (argvs.size() < 2) {
-        std::cout << "Syntax error. Required path name\n";
+        displayHelp();
         return;
     }
 
@@ -549,7 +549,7 @@ void PutCommand::execute(const std::vector<std::string> &argvs) {
         return;
 
     if (argvs.size() < 2) {
-        std::cout << "Syntax error. Required path name\n";
+        displayHelp();
         return;
     }
 
