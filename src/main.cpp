@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <fstream>
 #include "Cmd.h"
 #include "Utility.h"
 
@@ -39,8 +40,15 @@ int main(int argc, const char **argv) {
         exit(0);
     }
 
+    // open log file
+    std::ofstream logger(logFile, std::ios::app);
+    if (!logger) {
+        std::cout << "Cannot open file " << logFile << "\n";
+        exit(0);
+    }
+
     // run command service
-    CommandService cmdService(hostname, port);
+    CommandService cmdService(&std::cout, &std::cin, &logger, hostname, port);
     cmdService.run();
 
     exit(0);

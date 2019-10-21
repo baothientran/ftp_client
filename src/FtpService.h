@@ -1,6 +1,7 @@
 #ifndef FTPSERVICE_H
 #define FTPSERVICE_H
 
+#include <iostream>
 #include <memory>
 #include <string>
 #include <functional>
@@ -79,7 +80,6 @@ public:
 };
 
 
-
 struct FtpCtrlReply {
     FtpCode code;
     std::string msg;
@@ -89,7 +89,7 @@ struct FtpCtrlReply {
 class FtpService
 {
 public:
-    FtpService();
+    FtpService(std::ostream *log);
 
     FtpService(const FtpService &) = delete;
 
@@ -127,11 +127,11 @@ public:
 
     void sendPASV();
 
-    void sendEPSV(bool argALL, NetProtocol netProtocol); // not tested
+    void sendEPSV(bool argALL, NetProtocol netProtocol);
 
     void sendPORT(uint16_t port);
 
-    void sendEPRT(NetProtocol netProtocol, uint16_t port); // not tested
+    void sendEPRT(NetProtocol netProtocol, uint16_t port);
 
     void sendRETR(const std::string &filePath);
 
@@ -139,7 +139,7 @@ public:
 
     static void parsePASVReply(const std::string &pasvReply, std::string &ipAddr, uint16_t &port);
 
-    static void parseEPSVReply(const std::string &epsvReply, uint16_t &port); // not tested
+    static void parseEPSVReply(const std::string &epsvReply, uint16_t &port);
 
     static const uint16_t USABLE_PORT_MIN  = 1024;
 

@@ -13,7 +13,8 @@ class Command;
 
 class CommandService {
 public:
-    CommandService(const std::string &hostname, uint16_t port);
+    CommandService(std::ostream *output, std::istream *input, std::ostream *logger,
+                   const std::string &hostname, uint16_t port);
 
     ~CommandService();
 
@@ -32,6 +33,12 @@ public:
     bool serviceShouldTerminate() const;
 
     void setServiceShouldTerminate(bool terminate);
+
+    std::ostream &output();
+
+    std::istream &input();
+
+    std::ostream &logger();
 
     const std::map<std::string, std::unique_ptr<Command>> &commands() const;
 

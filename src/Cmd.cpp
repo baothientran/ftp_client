@@ -31,6 +31,7 @@ struct CommandService::Impl {
         return argvs;
     }
 
+
     bool passiveMode;
     bool serviceAvailable;
     bool shouldTerminate;
@@ -38,17 +39,25 @@ struct CommandService::Impl {
     uint16_t port;
     std::unique_ptr<FtpService> ftpService;
     std::map<std::string, std::unique_ptr<Command>> commands;
+    std::ostream *output;
+    std::istream *input;
+    std::ostream *logger;
 };
 
 
-CommandService::CommandService(const std::string &hostname, uint16_t port) {
+CommandService::CommandService(std::ostream *output, std::istream *input, std::ostream *logger,
+                               const std::string &hostname, uint16_t port)
+{
     _impl = std::make_unique<Impl>();
     _impl->passiveMode = false;
     _impl->serviceAvailable = false;
     _impl->shouldTerminate = false;
     _impl->hostname = hostname;
     _impl->port = port;
-    _impl->ftpService  = std::make_unique<FtpService>();
+    _impl->output = output;
+    _impl->input = input;
+    _impl->logger = logger;
+    _impl->ftpService  = std::make_unique<FtpService>(logger);
 
     // initialize commands
     _impl->commands.insert({      HelpCommand::PROG, std::make_unique<HelpCommand>(_impl->ftpService.get(), this)});
@@ -64,8 +73,7 @@ CommandService::CommandService(const std::string &hostname, uint16_t port) {
 }
 
 
-CommandService::~CommandService()
-{}
+CommandService::~CommandService() {}
 
 
 void CommandService::setPassiveMode(bool passive) {
@@ -80,6 +88,21 @@ bool CommandService::serviceShouldTerminate() const {
 
 void CommandService::setServiceShouldTerminate(bool terminate) {
     _impl->shouldTerminate = terminate;
+}
+
+
+std::ostream &CommandService::output() {
+    return *_impl->output;
+}
+
+
+std::istream &CommandService::input() {
+    return *_impl->input;
+}
+
+
+std::ostream &CommandService::logger() {
+    return *_impl->logger;
 }
 
 
@@ -110,30 +133,44 @@ bool CommandService::serviceAvailable() const {
 
 void CommandService::setServiceAvailable(bool available) {
     _impl->serviceAvailable = available;
+    if (!available)
+        _impl->ftpService->closeCtrlConnect();
 }
 
 
 void CommandService::run() {
-    std::string input = ConnectCommand::PROG;
+    std::string userInput = ConnectCommand::PROG;
 
     while (true) {
-        if (!input.empty()) {
+        if (!userInput.empty()) {
             // run command
-            std::vector<std::string> argvs = _impl->parseCommandLine(input);
+            std::vector<std::string> argvs = _impl->parseCommandLine(userInput);
             auto cmd = _impl->commands.find(argvs[0]);
-            if (cmd == _impl->commands.end())
-                std::cout << "unrecognized command.\n";
-            else
-                cmd->second->execute(argvs);
+            if (cmd == _impl->commands.end()) {
+                *_impl->output << "Unrecognized command.\n" <<
+                                  "Type help for the list of supported commands.\n" <<
+                                  "Type help <Space> <Command> <Enter> for a specific command usage\n";
+            }
+            else {
+                try {
+                    cmd->second->execute(argvs);
+                } catch (SocketException e) {
+                    *_impl->output << "Oops error occur: " << e.what() << "\n"
+                                   << "Close ftp connection\n";
+                    setServiceAvailable(false);
+                }
+            }
+        }
 
-            // should terminate serivce
-            if (_impl->shouldTerminate)
-                break;
+        // should terminate serivce
+        if (_impl->shouldTerminate) {
+            *_impl->output << "Quit program\n";
+            break;
         }
 
         // get input from user
-        std::cout << "> ";
-        getline(std::cin, input);
+        *_impl->output << "> ";
+        getline(*_impl->input, userInput);
     }
 }
 
@@ -145,46 +182,68 @@ struct Command::Impl {
     bool openPassiveDataConnection() {
         static const int RETRIES = 15;
 
+        auto cmdService = cmd->cmdService;
+        auto &output = cmdService->output();
+
+        uint16_t passivePort;
         FtpCtrlReply reply;
         int retries = 1;
         while (retries <= RETRIES) {
-            try {
+            if (cmd->ftpService->netProtocol() == IPv6) {
+                cmd->ftpService->sendEPSV(false, IPv6);
+                cmd->getFtpReplyAndCheckTimeout(reply);
+                if (reply.code != ENTERING_EXTENDED_PASSIVE_MODE)
+                    break;
+
+                std::string ipAddr;
+                FtpService::parseEPSVReply(reply.msg, passivePort);
+            }
+            else {
                 cmd->ftpService->sendPASV();
                 cmd->getFtpReplyAndCheckTimeout(reply);
                 if (reply.code != ENTERING_PASSIVE_MODE)
                     break;
 
-                uint16_t passivePort;
                 std::string ipAddr;
                 FtpService::parsePASVReply(reply.msg, ipAddr, passivePort);
+            }
+
+            try {
                 cmd->ftpService->openDataConnect(passivePort, false);
 
                 break;
             } catch (SocketException e) {
+                output << "Failed to open data connection on local. Retries: " << retries << "/" << RETRIES << "\n";
                 ++retries;
-                std::cout << "Failed to open data connection on local. Retries: " << retries << "/" << RETRIES << "\n";
             }
         }
 
-        return retries <= RETRIES && reply.code == ENTERING_PASSIVE_MODE;
+        return retries <= RETRIES && (reply.code == ENTERING_PASSIVE_MODE || reply.code == ENTERING_EXTENDED_PASSIVE_MODE);
     }
 
 
     bool openActiveDataConnection() {
+        auto cmdService = cmd->cmdService;
+        auto &output = cmdService->output();
+
         FtpCtrlReply reply;
         uint16_t port = FtpService::USABLE_PORT_MAX;
         while (port >= FtpService::USABLE_PORT_MIN) {
-            try {
+            if (cmd->ftpService->netProtocol() == IPv6)
+                cmd->ftpService->sendEPRT(IPv6, port);
+            else
                 cmd->ftpService->sendPORT(port);
-                cmd->getFtpReplyAndCheckTimeout(reply);
-                if (reply.code != COMMAND_OK)
-                    break;
 
+            cmd->getFtpReplyAndCheckTimeout(reply);
+            if (reply.code != COMMAND_OK)
+                break;
+
+            try {
                 cmd->ftpService->openDataConnect(port, true);
                 break;
             } catch (SocketException e) {
                 --port;
-                std::cout << "Failed to open data connection on local. Retry another port number: " << port << "\n";
+                output << "Failed to open data connection on local. Retry another port number: " << port << "\n";
             }
         }
 
@@ -216,10 +275,10 @@ bool Command::openDataConnection() {
 
 
 bool Command::checkCmdServiceAvailable() {
+    auto &output = cmdService->output();
     bool available = cmdService->serviceAvailable();
-    if (!available) {
-        std::cout << "Service not available. Consider to use connect command\n";
-    }
+    if (!available)
+        output << "Service not available. Consider to use connect command\n";
 
     return available;
 }
@@ -227,16 +286,14 @@ bool Command::checkCmdServiceAvailable() {
 
 void Command::getFtpReplyAndCheckTimeout(FtpCtrlReply &reply) {
     getFtpReply(reply);
-    if (reply.code == SERVICE_UNAVAILABLE) {
-        cmdService->setServiceAvailable(false);
-        ftpService->closeCtrlConnect();
-    }
+    cmdService->setServiceAvailable(reply.code != SERVICE_UNAVAILABLE);
 }
 
 
 void Command::getFtpReply(FtpCtrlReply &reply) {
+    auto &output = cmdService->output();
     ftpService->readCtrlReply(reply);
-    std::cout << reply.msg;
+    output << reply.msg;
 }
 
 
@@ -247,20 +304,22 @@ const std::string HelpCommand::PROG = "help";
 
 
 void HelpCommand::displayHelp() {
-    std::cout << "Usage : Display the help message for command\n";
-    std::cout << "Syntax: help [<Space> <Command>] <Enter>\n";
+    auto &output = cmdService->output();
+    output << "Usage : Display the help message for command\n";
+    output << "Syntax: help [<Space> <Command>] <Enter>\n";
 }
 
 
 void HelpCommand::execute(const std::vector<std::string> &argvs) {
+    auto &output = cmdService->output();
     const auto &commands = cmdService->commands();
 
     // print the list of command if command option not provided
     if (argvs.size() == 1) {
         for (const auto &cmd : commands)
-            std::cout << std::setw(7 + cmd.first.size()) << std::left << cmd.first;
+            output << std::setw(7 + cmd.first.size()) << std::left << cmd.first;
 
-        std::cout << "\n";
+        output << "\n";
         return;
     }
 
@@ -268,7 +327,7 @@ void HelpCommand::execute(const std::vector<std::string> &argvs) {
     const auto &cmdProg = argvs[1];
     const auto &cmd     = commands.find(cmdProg);
     if (cmd == commands.end()) {
-        std::cout << "Command " << cmdProg << " not supported\n";
+        output << "Command " << cmdProg << " not supported\n";
         return;
     }
 
@@ -283,12 +342,15 @@ const std::string ConnectCommand::PROG = "connect";
 
 
 void ConnectCommand::displayHelp() {
-    std::cout << "Usage : Connect to the ftp server\n";
-    std::cout << "Syntax: connect <Enter>\n";
+    auto &output = cmdService->output();
+    output << "Usage : Connect to the ftp server\n";
+    output << "Syntax: connect <Enter>\n";
 }
 
 
 void ConnectCommand::execute(const std::vector<std::string> &) {
+    auto &output = cmdService->output();
+    auto &input  = cmdService->input();
     FtpCtrlReply reply;
     if (!cmdService->serviceAvailable()) {
         const auto &hostname = cmdService->hostname();
@@ -307,8 +369,8 @@ void ConnectCommand::execute(const std::vector<std::string> &) {
 
     // get username
     std::string user;
-    std::cout << "User: ";
-    getline(std::cin, user);
+    output << "User: ";
+    getline(input, user);
     ftpService->sendUSER(user);
     getFtpReplyAndCheckTimeout(reply);
     if (reply.code != USER_OK_PASSWORD_NEEDED) {
@@ -317,8 +379,8 @@ void ConnectCommand::execute(const std::vector<std::string> &) {
 
     // get password
     std::string pass;
-    std::cout << "Password: ";
-    getline(std::cin, pass);
+    output << "Password: ";
+    getline(input, pass);
     ftpService->sendPASS(pass);
     getFtpReplyAndCheckTimeout(reply);
 }
@@ -331,8 +393,9 @@ const std::string DisconnectCommand::PROG = "disconnect";
 
 
 void DisconnectCommand::displayHelp() {
-    std::cout << "Usage : Log out of the ftp server. The program will not exit after the command\n";
-    std::cout << "Syntax: disconnect <Enter>\n";
+    auto &output = cmdService->output();
+    output << "Usage : Log out of the ftp server. The program will not exit after the command\n";
+    output << "Syntax: disconnect <Enter>\n";
 }
 
 
@@ -344,7 +407,6 @@ void DisconnectCommand::execute(const std::vector<std::string> &) {
     ftpService->sendQUIT();
     getFtpReply(reply);
     cmdService->setServiceAvailable(false);
-    ftpService->closeCtrlConnect();
 }
 
 
@@ -355,8 +417,9 @@ const std::string QuitCommand::PROG = "quit";
 
 
 void QuitCommand::displayHelp() {
-    std::cout << "Usage : Log out of the ftp server. The program will exit after the command\n";
-    std::cout << "Syntax: quit <Enter>\n";
+    auto &output = cmdService->output();
+    output << "Usage : Log out of the ftp server. The program will exit after the command\n";
+    output << "Syntax: quit <Enter>\n";
 }
 
 
@@ -368,7 +431,6 @@ void QuitCommand::execute(const std::vector<std::string> &) {
         ftpService->sendQUIT();
         getFtpReply(reply);
         cmdService->setServiceAvailable(false);
-        ftpService->closeCtrlConnect();
     }
 }
 
@@ -380,8 +442,9 @@ const std::string CdCommand::PROG = "cd";
 
 
 void CdCommand::displayHelp() {
-    std::cout << "Usage : Change to the remote directory\n";
-    std::cout << "Syntax: cd <Space> <Remote Directory> <Enter>\n";
+    auto &output = cmdService->output();
+    output << "Usage : Change to the remote directory\n";
+    output << "Syntax: cd <Space> <Remote Directory> <Enter>\n";
 }
 
 
@@ -408,8 +471,9 @@ const std::string PwdCommand::PROG = "pwd";
 
 
 void PwdCommand::displayHelp() {
-    std::cout << "Usage : Print working remote directory\n";
-    std::cout << "Syntax: pwd <Enter>\n";
+    auto &output = cmdService->output();
+    output << "Usage : Print working remote directory\n";
+    output << "Syntax: pwd <Enter>\n";
 }
 
 
@@ -430,14 +494,17 @@ const std::string LsCommand::PROG = "ls";
 
 
 void LsCommand::displayHelp() {
-    std::cout << "Usage : List info about the remote file or all the files in the remote directory\n";
-    std::cout << "Syntax: ls [<Space> <Remote File or Directory>] <Enter>\n";
+    auto &output = cmdService->output();
+    output << "Usage : List info about the remote file or all the files in the remote directory\n";
+    output << "Syntax: ls [<Space> <Remote File or Directory>] <Enter>\n";
 }
 
 
 void LsCommand::execute(const std::vector<std::string> &argvs) {
     if (!checkCmdServiceAvailable())
         return;
+
+    auto &output = cmdService->output();
 
     std::string remotePath = "";
     if (argvs.size() >= 2)
@@ -451,8 +518,10 @@ void LsCommand::execute(const std::vector<std::string> &argvs) {
     // send LIST cmd
     ftpService->sendLIST(remotePath);
     getFtpReplyAndCheckTimeout(reply);
-    if (reply.code != FILE_STATUS_OK_OPEN_DATA_CONNECTION)
+    if (reply.code != FILE_STATUS_OK_OPEN_DATA_CONNECTION) {
+        ftpService->closeDataConnect();
         return;
+    }
 
     // read data from data connection
     std::vector<unsigned char> buf;
@@ -462,7 +531,7 @@ void LsCommand::execute(const std::vector<std::string> &argvs) {
     // read server reply from ctrl connection
     getFtpReplyAndCheckTimeout(reply);
     if (reply.code == CLOSE_DATA_CONNECTION_REQUEST_FILE_ACTION_SUCCESS)
-        std::cout.write(reinterpret_cast<const char *>(buf.data()), buf.size());
+        output.write(reinterpret_cast<const char *>(buf.data()), buf.size());
 }
 
 
@@ -473,8 +542,9 @@ const std::string GetCommand::PROG = "get";
 
 
 void GetCommand::displayHelp() {
-    std::cout << "Usage : Download the remote file and save it into the local file. Local file is optional and default to be the name of remote file\n";
-    std::cout << "Syntax: get <Space> <Remote File> [<Space> <Local File>] <Enter>\n";
+    auto &output = cmdService->output();
+    output << "Usage : Download the remote file and save it into the local file. Local file is optional and default to be the name of remote file\n";
+    output << "Syntax: get <Space> <Remote File> [<Space> <Local File>] <Enter>\n";
 }
 
 
@@ -487,6 +557,8 @@ void GetCommand::execute(const std::vector<std::string> &argvs) {
         return;
     }
 
+    auto &output = cmdService->output();
+
     // get local and remote path
     std::string localPath;
     std::string remotePath;
@@ -498,8 +570,8 @@ void GetCommand::execute(const std::vector<std::string> &argvs) {
         remotePath  = argvs[1];
         localPath   = argvs[2];
     }
-    std::cout << "Local path: "  << localPath  << "\n";
-    std::cout << "Remote path: " << remotePath << "\n";
+    output << "Local path: "  << localPath  << "\n";
+    output << "Remote path: " << remotePath << "\n";
 
     // open data connection
     FtpCtrlReply reply;
@@ -509,8 +581,10 @@ void GetCommand::execute(const std::vector<std::string> &argvs) {
     // send RETR cmd
     ftpService->sendRETR(remotePath);
     getFtpReplyAndCheckTimeout(reply);
-    if (reply.code != FILE_STATUS_OK_OPEN_DATA_CONNECTION)
+    if (reply.code != FILE_STATUS_OK_OPEN_DATA_CONNECTION) {
+        ftpService->closeDataConnect();
         return;
+    }
 
     // read data from data connection
     std::vector<Byte> buf;
@@ -525,7 +599,7 @@ void GetCommand::execute(const std::vector<std::string> &argvs) {
     // write data to file
     std::ofstream file(localPath, std::ios::out | std::ios::binary);
     if (!file) {
-        std::cout << "Cannot open local path: " << localPath << "\n";
+        output << "Cannot open local path: " << localPath << "\n";
         return;
     }
     file.write(reinterpret_cast<const char *>(buf.data()), buf.size());
@@ -539,8 +613,9 @@ const std::string PutCommand::PROG = "put";
 
 
 void PutCommand::displayHelp() {
-    std::cout << "Usage : Upload the local file to the ftp server and save as the remote file name. Remote file is optional and default to be local file name\n";
-    std::cout << "Syntax: put <Space> <Local File> [<Space> <Remote File>] <Enter>\n";
+    auto &output = cmdService->output();
+    output << "Usage : Upload the local file to the ftp server and save as the remote file name. Remote file is optional and default to be local file name\n";
+    output << "Syntax: put <Space> <Local File> [<Space> <Remote File>] <Enter>\n";
 }
 
 
@@ -553,6 +628,8 @@ void PutCommand::execute(const std::vector<std::string> &argvs) {
         return;
     }
 
+    auto &output = cmdService->output();
+
     // get local path and remote path
     std::string localPath  = "";
     std::string remotePath = "";
@@ -564,12 +641,12 @@ void PutCommand::execute(const std::vector<std::string> &argvs) {
         localPath  = argvs[1];
         remotePath = argvs[2];
     }
-    std::cout << "Local path: " << localPath << "\n";
-    std::cout << "Remote path: " << remotePath << "\n";
+    output << "Local path: " << localPath << "\n";
+    output << "Remote path: " << remotePath << "\n";
 
     // check if local file exists
     if (!isRegularFile(localPath)) {
-        std::cout << "Local path: " << localPath << " is not a regular file\n";
+        output << "Local path: " << localPath << " is not a regular file\n";
         return;
     }
 
@@ -581,8 +658,10 @@ void PutCommand::execute(const std::vector<std::string> &argvs) {
     // send STOR cmd
     ftpService->sendSTOR(remotePath);
     getFtpReplyAndCheckTimeout(reply);
-    if (reply.code != FILE_STATUS_OK_OPEN_DATA_CONNECTION)
+    if (reply.code != FILE_STATUS_OK_OPEN_DATA_CONNECTION) {
+        ftpService->closeDataConnect();
         return;
+    }
 
     // read file here and send data to the server
     std::ifstream file(localPath);
@@ -603,17 +682,19 @@ const std::string PassiveCommand::PROG = "passive";
 
 
 void PassiveCommand::displayHelp() {
-    std::cout << "Usage : Toggle passive mode for data connection\n";
-    std::cout << "Syntax: passive <Enter>\n";
+    auto &output = cmdService->output();
+    output << "Usage : Toggle passive mode for data connection\n";
+    output << "Syntax: passive <Enter>\n";
 }
 
 
 void PassiveCommand::execute(const std::vector<std::string> &) {
+    auto &output = cmdService->output();
     bool passive = cmdService->passiveMode();
     cmdService->setPassiveMode(!passive);
     if (cmdService->passiveMode())
-        std::cout << "Passive mode on\n";
+        output << "Passive mode on\n";
     else
-        std::cout << "Passive mode off\n";
+        output << "Passive mode off\n";
 }
 
