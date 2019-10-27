@@ -8,6 +8,10 @@
 const std::string DEFAULT_FTP_PORT = "21";
 
 
+/*
+ * displayUsage()
+ * Display the help message when user enter wrong command line arguments to the main program
+ */
 void displayUsage() {
     std::cout << "Usage: ftp_client_exe [IP addr or hostname] [log file] [port number]\n";
     std::cout << "[IP addr or hostname]: REQUIRED. The IP address or hostname of ftp server to connect to\n";
@@ -16,6 +20,11 @@ void displayUsage() {
 }
 
 
+/*
+ * main()
+ * Main function of ftp client. Responsible for parsing command line arguments,
+ * Openning log file, and Running Command Service to get input from the user
+ */
 int main(int argc, const char **argv) {
     // parsing command line
     std::string hostname, logFile;

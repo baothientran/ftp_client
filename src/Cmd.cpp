@@ -133,8 +133,6 @@ bool CommandService::serviceAvailable() const {
 
 void CommandService::setServiceAvailable(bool available) {
     _impl->serviceAvailable = available;
-    if (!available)
-        _impl->ftpService->closeCtrlConnect();
 }
 
 
@@ -154,9 +152,13 @@ void CommandService::run() {
             else {
                 try {
                     cmd->second->execute(argvs);
-                } catch (SocketException e) {
-                    *_impl->output << "Oops error occur: " << e.what() << "\n"
+                } catch (const std::exception &e) {
+                    *_impl->output << "Oops fatal error occur: " << e.what() << "\n"
                                    << "Close ftp connection\n";
+
+                    logDateTime(*_impl->logger) << "Fatal error occur: " << e.what() << ". Close ftp connection" << std::endl;
+
+                    _impl->ftpService->closeCtrlConnect();
                     setServiceAvailable(false);
                 }
             }
@@ -184,6 +186,7 @@ struct Command::Impl {
 
         auto cmdService = cmd->cmdService;
         auto &output = cmdService->output();
+        auto &logger = cmdService->logger();
 
         uint16_t passivePort;
         FtpCtrlReply reply;
@@ -195,7 +198,6 @@ struct Command::Impl {
                 if (reply.code != ENTERING_EXTENDED_PASSIVE_MODE)
                     break;
 
-                std::string ipAddr;
                 FtpService::parseEPSVReply(reply.msg, passivePort);
             }
             else {
@@ -210,10 +212,10 @@ struct Command::Impl {
 
             try {
                 cmd->ftpService->openDataConnect(passivePort, false);
-
                 break;
-            } catch (SocketException e) {
-                output << "Failed to open data connection on local. Retries: " << retries << "/" << RETRIES << "\n";
+            } catch (const SocketException &e) {
+                output << "Failed to open data connection on local: " << e.what() << ". Retries: " << retries << "/" << RETRIES << "\n";
+                logDateTime(logger) << "Failed to open data connection on local: " << e.what() << ". Retries: " << retries << "/" << RETRIES << std::endl;
                 ++retries;
             }
         }
@@ -225,6 +227,7 @@ struct Command::Impl {
     bool openActiveDataConnection() {
         auto cmdService = cmd->cmdService;
         auto &output = cmdService->output();
+        auto &logger = cmdService->logger();
 
         FtpCtrlReply reply;
         uint16_t port = FtpService::USABLE_PORT_MAX;
@@ -241,9 +244,10 @@ struct Command::Impl {
             try {
                 cmd->ftpService->openDataConnect(port, true);
                 break;
-            } catch (SocketException e) {
+            } catch (const SocketException &e) {
                 --port;
-                output << "Failed to open data connection on local. Retry another port number: " << port << "\n";
+                output << "Failed to open data connection on local: " << e.what() << ". Retry another port number: " << port << "\n";
+                logDateTime(logger) << "Failed to open data connection on local: " << e.what() << ". Retry another port number: " << port << std::endl;
             }
         }
 
@@ -286,7 +290,10 @@ bool Command::checkCmdServiceAvailable() {
 
 void Command::getFtpReplyAndCheckTimeout(FtpCtrlReply &reply) {
     getFtpReply(reply);
-    cmdService->setServiceAvailable(reply.code != SERVICE_UNAVAILABLE);
+    if (reply.code == SERVICE_UNAVAILABLE) {
+        cmdService->setServiceAvailable(false);
+        ftpService->closeCtrlConnect();
+    }
 }
 
 
@@ -360,6 +367,7 @@ void ConnectCommand::execute(const std::vector<std::string> &) {
         ftpService->openCtrlConnect(hostname, port);
         getFtpReply(reply);
         if (reply.code != SERVICE_READY) {
+            ftpService->closeCtrlConnect();
             cmdService->setServiceAvailable(false);
             return;
         }
@@ -406,6 +414,7 @@ void DisconnectCommand::execute(const std::vector<std::string> &) {
     FtpCtrlReply reply;
     ftpService->sendQUIT();
     getFtpReply(reply);
+    ftpService->closeCtrlConnect();
     cmdService->setServiceAvailable(false);
 }
 
@@ -430,6 +439,7 @@ void QuitCommand::execute(const std::vector<std::string> &) {
         FtpCtrlReply reply;
         ftpService->sendQUIT();
         getFtpReply(reply);
+        ftpService->closeCtrlConnect();
         cmdService->setServiceAvailable(false);
     }
 }

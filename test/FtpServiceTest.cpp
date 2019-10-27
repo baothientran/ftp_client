@@ -3,39 +3,39 @@
 #include "FtpService.h"
 
 
-static void connectLegitServer(FtpService &ftpService) {
-    FtpCtrlReply stat;
-    ftpService.openCtrlConnect("10.246.251.93", 21);
-    ftpService.readCtrlReply(stat);
-    REQUIRE(stat.code == SERVICE_READY);
-    REQUIRE(stat.msg == "220 Welcome to CS472 FTP Server\r\n");
+//static void connectLegitServer(FtpService &ftpService) {
+//    FtpCtrlReply stat;
+//    ftpService.openCtrlConnect("10.246.251.93", 21);
+//    ftpService.readCtrlReply(stat);
+//    REQUIRE(stat.code == SERVICE_READY);
+//    REQUIRE(stat.msg == "220 Welcome to CS472 FTP Server\r\n");
 
-    ftpService.sendUSER("cs472");
-    ftpService.readCtrlReply(stat);
-    REQUIRE(stat.code == USER_OK_PASSWORD_NEEDED);
-    REQUIRE(stat.msg == "331 Please specify the password.\r\n");
+//    ftpService.sendUSER("cs472");
+//    ftpService.readCtrlReply(stat);
+//    REQUIRE(stat.code == USER_OK_PASSWORD_NEEDED);
+//    REQUIRE(stat.msg == "331 Please specify the password.\r\n");
 
-    ftpService.sendPASS("hw2ftp");
-    ftpService.readCtrlReply(stat);
-    REQUIRE(stat.code == USER_LOGGED_IN_PROCCEED);
-    REQUIRE(stat.msg == "230 Login successful.\r\n");
-}
+//    ftpService.sendPASS("hw2ftp");
+//    ftpService.readCtrlReply(stat);
+//    REQUIRE(stat.code == USER_LOGGED_IN_PROCCEED);
+//    REQUIRE(stat.msg == "230 Login successful.\r\n");
+//}
 
 
 //TEST_CASE("FtpService connect to remote host", "[FtpService]") {
-////    SECTION("connect to random non-existence server") {
-////        // connect to legit ftp client
-////        FtpCtrlReply stat;
-////        auto ftpService = std::make_unique<FtpService>();
-////        REQUIRE(ftpService->openCtrlConnect("adasdadqlwqwndqbwduiqbwdqwd", 123) == false);
-////    }
+//    SECTION("connect to random non-existence server") {
+//        // connect to legit ftp client
+//        FtpCtrlReply stat;
+//        auto ftpService = std::make_unique<FtpService>();
+//        REQUIRE(ftpService->openCtrlConnect("adasdadqlwqwndqbwduiqbwdqwd", 123) == false);
+//    }
 
-////    SECTION("connect ftp server with wrong port") {
-////        // connect to legit ftp client
-////        FtpCtrlReply stat;
-////        auto ftpService = std::make_unique<FtpService>();
-////        REQUIRE(ftpService->openCtrlConnect("10.246.251.93", 2121) == false);
-////    }
+//    SECTION("connect ftp server with wrong port") {
+//        // connect to legit ftp client
+//        FtpCtrlReply stat;
+//        auto ftpService = std::make_unique<FtpService>();
+//        REQUIRE(ftpService->openCtrlConnect("10.246.251.93", 2121) == false);
+//    }
 
 //    SECTION("legit ftp server") {
 //        // connect to legit ftp client
@@ -401,14 +401,14 @@ static void connectLegitServer(FtpService &ftpService) {
 //}
 
 
-TEST_CASE("EPRT") {
-    SECTION("retr passive mode") {
-        auto ftpService = std::make_unique<FtpService>(&std::cout);
-        connectLegitServer(*ftpService);
+//TEST_CASE("EPRT") {
+//    SECTION("retr passive mode") {
+//        auto ftpService = std::make_unique<FtpService>(&std::cout);
+//        connectLegitServer(*ftpService);
 
-        FtpCtrlReply stat;
-        ftpService->sendEPRT(IPv4, 30000);
-        ftpService->readCtrlReply(stat);
-        REQUIRE(stat.code == ENTERING_PASSIVE_MODE);
-    }
-}
+//        FtpCtrlReply stat;
+//        ftpService->sendEPRT(IPv4, 30000);
+//        ftpService->readCtrlReply(stat);
+//        REQUIRE(stat.code == ENTERING_PASSIVE_MODE);
+//    }
+//}

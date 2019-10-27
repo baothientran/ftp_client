@@ -70,6 +70,11 @@ enum NetProtocol {
 };
 
 
+/*
+ * SocketException
+ * The exception will be thrown if the ftp service cannot open socket, or error when read from
+ * and write to the socket
+ */
 class SocketException : public std::exception {
 public:
     SocketException() = default;
@@ -80,12 +85,24 @@ public:
 };
 
 
+/*
+ * FtpCtrlReply struct
+ * Store the control reply and the reply code from ftp server
+ */
 struct FtpCtrlReply {
     FtpCode code;
     std::string msg;
 };
 
 
+/*
+ * FtpService class
+ * The class provide low level interface to interact with ftp server, such as
+ * open control connection with ftp server, open data connection with ftp server,
+ * send control command to ftp server, send data to the ftp server through data connection,
+ * and retrieve reply back from the server. FtpService is not responsible for the order of
+ * Ftp commands sent to the ftp server defined in RFC
+ */
 class FtpService
 {
 public:
@@ -97,48 +114,115 @@ public:
 
     ~FtpService();
 
+    /*
+     * Get the protocol used in the ftp connection: IPv4 or IPv6
+     */
     NetProtocol netProtocol() const;
 
+    /*
+     * Open data connection in active or passive mode. If passive mode is chosen,
+     * the port parameter will be ignored
+     */
     void openDataConnect(uint16_t port, bool active);
 
+    /*
+     * Send the buffer of bytes to the server through data connection
+     */
     void sendDataConnect(const std::vector<Byte> &buf);
 
+    /*
+     * Read the data back from the ftp server through data connection
+     */
     void readDataReply(std::vector<Byte> &buf);
 
+    /*
+     * Close the data connection with the fpt server
+     */
     void closeDataConnect();
 
+    /*
+     * Open control connection with the server
+     */
     void openCtrlConnect(const std::string &hostname, uint16_t port);
 
+    /*
+     * Read the control reply from server
+     */
     void readCtrlReply(FtpCtrlReply &reply);
 
+    /*
+     * Close the control connection with the server
+     */
     void closeCtrlConnect();
 
+    /*
+     * Send USER command to the ftp server
+     */
     void sendUSER(const std::string &user);
 
+    /*
+     * Send PASS command to the ftp server
+     */
     void sendPASS(const std::string &password);
 
+    /*
+     * Send CWD command to the ftp server
+     */
     void sendCWD(const std::string &path);
 
+    /*
+     * Send PWD command to the ftp server
+     */
     void sendPWD();
 
+    /*
+     * Send LIST command to the ftp server
+     */
     void sendLIST(const std::string &path);
 
+    /*
+     * Send QUIT command to the ftp server
+     */
     void sendQUIT();
 
+    /*
+     * Send PASV command to the ftp server
+     */
     void sendPASV();
 
+    /*
+     * Send EPSV command to the ftp server
+     */
     void sendEPSV(bool argALL, NetProtocol netProtocol);
 
+    /*
+     * Send PORT command to the ftp server
+     */
     void sendPORT(uint16_t port);
 
+    /*
+     * Send EPRT command to the ftp server
+     */
     void sendEPRT(NetProtocol netProtocol, uint16_t port);
 
+    /*
+     * Send RETR command to the ftp server
+     */
     void sendRETR(const std::string &filePath);
 
+    /*
+     * Send STOR command to the ftp server
+     */
     void sendSTOR(const std::string &filePath);
 
+    /*
+     * Parse the PASV reply to get the port number and ip address for data connection
+     */
     static void parsePASVReply(const std::string &pasvReply, std::string &ipAddr, uint16_t &port);
 
+    /*
+     * Parse the EPSV reply to get the port number for data connection
+     */
     static void parseEPSVReply(const std::string &epsvReply, uint16_t &port);
 
     static const uint16_t USABLE_PORT_MIN  = 1024;

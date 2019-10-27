@@ -24,13 +24,10 @@ static const int BUFFER_SIZE_MIN  = 2048;
 static const int LISTEN_QUEUE_MAX = 100;
 
 struct FtpService::Impl {
-    std::ostream &getLogger() {
-        std::time_t now = std::time(nullptr);
-        std::tm tm = *std::localtime(&now);
-        return *logger << std::put_time(&tm, "%c %Z") << ": ";
-    }
 
-
+    /*
+     * Helper function to accept comming request
+     */
     void acceptHost(int listenSockfd, int &sockfd) {
         sockaddr_storage peerAddr;
         socklen_t len = sizeof(peerAddr);
@@ -40,6 +37,10 @@ struct FtpService::Impl {
     }
 
 
+    /*
+     * Helper function to open connection to listen for comming request
+     * This code refers from the example of http://man7.org/linux/man-pages/man3/getaddrinfo.3.html
+     */
     void listenHost(const std::string &port, int &outSockfd) {
         // get ip address
         int stat;
@@ -82,6 +83,10 @@ struct FtpService::Impl {
     }
 
 
+    /*
+     * Helper function to connect to ftp server. Function return socket descriptor and protocol of the connection
+     * This code refers from the example of http://man7.org/linux/man-pages/man3/getaddrinfo.3.html
+     */
     void connectHost(const std::string &host, const std::string &port, int &sockfd, NetProtocol &protocol) {
         // get ip address
         int stat;
@@ -119,12 +124,18 @@ struct FtpService::Impl {
     }
 
 
+    /*
+     * Helper function to write ftp command to control connection. It will log the command after sending
+     */
     void writeAndLogCtrlCmd(const std::string &cmd) {
         writeSockEnsure(ctrlSockfd, reinterpret_cast<const Byte *>(cmd.c_str()), cmd.size());
-        getLogger() << "Sent " << cmd;
+        logDateTime(*logger) << "Sent " << cmd;
     }
 
 
+    /*
+     * Helper function to get data from socket and put it into vector container
+     */
     void readDataReply(int sockfd, std::vector<Byte> &buf) {
         Byte rb[BUFFER_SIZE_MIN];
         buf.reserve(BUFFER_SIZE_MIN);
@@ -136,6 +147,9 @@ struct FtpService::Impl {
     }
 
 
+    /*
+     * Helper function to write size bytes of buffer to the socket
+     */
     void writeSockEnsure(int sockfd, const Byte *buf, size_t size) {
         size_t writeSofar = 0;
         while (writeSofar < size) {
@@ -148,6 +162,9 @@ struct FtpService::Impl {
     }
 
 
+    /*
+     * Helper function to read line from socket
+     */
     void readLineSockEnsure(int sockfd, std::string &line) {
         char ch;
         ssize_t rn;
@@ -165,6 +182,11 @@ struct FtpService::Impl {
     }
 
 
+    /*
+     * Helper function to read data to the raw buffer upto a certain size. Function returns
+     * the number of bytes that is read into buffer and is guaranteed to be equal or smaller than
+     * the max size.
+     */
     int readSockEnsure(int sockfd, Byte *buf, int size) {
         int readSoFar = 0;
         while (readSoFar < size) {
@@ -182,12 +204,18 @@ struct FtpService::Impl {
     }
 
 
+    /*
+     * Helper function to close socket and throw exception if any error occur
+     */
     void closeSocket(int sockfd) {
         if (close(sockfd) != 0)
             throw SocketException();
     }
 
 
+    /*
+     * Helper function to get ip address from the socket
+     */
     void getIpAddress(NetProtocol protocol, int sockfd, std::string &ipAddress) {
         // retrieve local ip address will be used for PORT and EPRT cmd
         char localIp[INET6_ADDRSTRLEN];
@@ -208,6 +236,9 @@ struct FtpService::Impl {
     }
 
 
+    /*
+     * Helper function to parse ftp control reply
+     */
     void parseCtrlReplyCode(const std::string &reply, FtpCode &replyCode) {
         unsigned code = 0;
         for (size_t i = 0; i < reply.size(); ++i) {
@@ -267,7 +298,7 @@ void FtpService::openCtrlConnect(const std::string &hostname, uint16_t port) {
     _impl->getIpAddress(protocol, sockfd, _impl->localIpAddr);
 
     // log open connection
-    _impl->getLogger() << "Opened control connection with host " << _impl->hostname << " port " << port << std::endl;
+    logDateTime(*_impl->logger) << "Opened control connection with host " << _impl->hostname << " port " << port << std::endl;
 }
 
 
@@ -276,7 +307,7 @@ void FtpService::readCtrlReply(FtpCtrlReply &reply) {
     _impl->parseCtrlReplyCode(reply.msg, reply.code);
 
     // log ctrl reply from server
-    _impl->getLogger() << "Received " << reply.msg << std::flush;
+    logDateTime(*_impl->logger) << "Received " << reply.msg << std::flush;
 }
 
 
@@ -290,7 +321,7 @@ void FtpService::closeCtrlConnect() {
     _impl->localIpAddr = "";
 
     // log close connection
-    _impl->getLogger() << "Closed control connection with host " << _impl->hostname << std::endl;
+    logDateTime(*_impl->logger) << "Closed control connection with host " << _impl->hostname << std::endl;
 }
 
 
@@ -301,13 +332,13 @@ void FtpService::openDataConnect(uint16_t port, bool active) {
         _impl->connectHost(_impl->hostname, std::to_string(port), dataSockfd, protocol);
 
         // log open passive data connection
-        _impl->getLogger() << "Opened passive data connection with host " << _impl->hostname << " port " << port << std::endl;
+        logDateTime(*_impl->logger) << "Opened passive data connection with host " << _impl->hostname << " port " << port << std::endl;
     }
     else {
         _impl->listenHost(std::to_string(port), dataSockfd);
 
         // log open active data connection
-        _impl->getLogger() << "Opened active data connection with host " << _impl->hostname << " port " << port << std::endl;
+        logDateTime(*_impl->logger) << "Opened active data connection with host " << _impl->hostname << " port " << port << std::endl;
     }
 
     _impl->dataSockfd = dataSockfd;
@@ -326,7 +357,7 @@ void FtpService::sendDataConnect(const std::vector<Byte> &buf) {
         _impl->writeSockEnsure(_impl->dataSockfd, buf.data(), buf.size());
 
     // log data sent through data connection
-    _impl->getLogger() << "Sent " << buf.size() << " bytes to host " << _impl->hostname << " through data connection" << std::endl;
+    logDateTime(*_impl->logger) << "Sent " << buf.size() << " bytes to host " << _impl->hostname << " through data connection" << std::endl;
 }
 
 
@@ -341,7 +372,7 @@ void FtpService::readDataReply(std::vector<Byte> &buf) {
         _impl->readDataReply(_impl->dataSockfd, buf);
 
     // log data received through data connection
-    _impl->getLogger() << "Received " << buf.size() << " bytes from host " << _impl->hostname << " through data connection" << std::endl;
+    logDateTime(*_impl->logger) << "Received " << buf.size() << " bytes from host " << _impl->hostname << " through data connection" << std::endl;
 }
 
 
@@ -354,7 +385,7 @@ void FtpService::closeDataConnect() {
     _impl->activeDataMode = false;
 
     // log data received through data connection
-    _impl->getLogger() << "Closed data connection with host " << _impl->hostname << std::endl;
+    logDateTime(*_impl->logger) << "Closed data connection with host " << _impl->hostname << std::endl;
 }
 
 

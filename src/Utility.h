@@ -4,9 +4,13 @@
 #include <string>
 #include <vector>
 #include <limits>
+#include <iostream>
 
 
 bool isRegularFile(const std::string &file);
+
+
+std::ostream &logDateTime(std::ostream &stream);
 
 
 std::vector<std::string> splitString(const std::string &str, const std::string &token);
